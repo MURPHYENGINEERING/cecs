@@ -19,17 +19,16 @@ typedef struct {
 
 
 typedef struct {
-  component_id_t components[CECS_N_COMPONENTS / (sizeof(component_id_t) * 8u)];
+  component_id_t components[CECS_N_COMPONENTS / sizeof(component_id_t)];
 } signature_t;
 
 
-#define CECS_HAS_COMPONENT(signature, component_group, component)            \
-  ((signature)->components[((component_group % 8u) * component) / sizeof(component_id_t)] \
-   & (component % (sizeof(component_id_t))))
+#define CECS_HAS_COMPONENT(signature, component) \
+  ((signature)->components[component / sizeof(component_id_t)] & (1 << (component % sizeof(component_id_t))))
 
 
 struct cecs_container {
-};
+   };
 
 
 #endif

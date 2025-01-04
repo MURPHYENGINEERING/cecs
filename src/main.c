@@ -10,9 +10,9 @@ int main()
   printf("Hello, world!\n");
 
   signature_t signature;
-  signature.components[0] = 0b00001000u;
+  signature.components[0] = 0b10000010u;
 
-  if (CECS_HAS_COMPONENT(&signature, 0, 0b00001000u)) {
+  if (CECS_HAS_COMPONENT(&signature, 1)) {
     printf("Component detected!\n");
   }
 
