@@ -15,7 +15,7 @@ typedef struct {
 
 
 #define CECS_N_COMPONENTS  256u
-#define CECS_MAX_COMPONENT (CECS_N_COMPONENTS - 1u)
+#define CECS_MAX_COMPONENT ((component_id_t)(CECS_N_COMPONENTS - 1u))
 
 
 typedef struct {
