@@ -10,18 +10,29 @@ typedef struct {
 } position_t, velocity_t;
 
 
-static const cecs_component_id_t POSITION_ID = CECS_COMPONENT(position_t);
-static const cecs_component_id_t VELOCITY_ID = CECS_COMPONENT(velocity_t);
+cecs_component_id_t POSITION_ID;
+cecs_component_id_t VELOCITY_ID;
 
 
 void move_system()
 {
-  cecs_iter_t *it = cecs_query(2, POSITION_ID, VELOCITY_ID);
-  position_t *pos = (position_t*) cecs_get(it, POSITION_ID);
-  velocity_t *vel = (velocity_t*) cecs_get(it, VELOCITY_ID);
+  POSITION_ID = CECS_COMPONENT(position_t);
+  VELOCITY_ID = CECS_COMPONENT(velocity_t);
 
-  pos->x += vel->x;
-  pos->y += vel->y;
+  cecs_iter_t it = cecs_query(2, POSITION_ID, VELOCITY_ID);
+  //position_t *pos = (position_t*) cecs_get(&it, POSITION_ID);
+  //velocity_t *vel = (velocity_t*) cecs_get(&it, VELOCITY_ID);
+
+  //pos->x += vel->x;
+  //pos->y += vel->y;
+
+
+  if (CECS_HAS_COMPONENT(&it.sig, POSITION_ID)) {
+    printf("Component detected: POSITION\n");
+  }
+  if (CECS_HAS_COMPONENT(&it.sig, VELOCITY_ID)) {
+    printf("Component detected: VELOCITY\n");
+  }
 }
 
 
@@ -29,21 +40,8 @@ int main()
 {
   printf("Hello, world!\n");
 
-  //for (size_t i = 0; i < 10; ++i) {
-  //  move_system();
-  //}
-  cecs_sig_t sig;
-
-  CECS_ADD_COMPONENT(&sig, CECS_MAX_COMPONENT);
-
-  if (CECS_HAS_COMPONENT(&sig, CECS_MAX_COMPONENT)) {
-    printf("Found component!\n");
-  }
-
-  CECS_REMOVE_COMPONENT(&sig, CECS_MAX_COMPONENT);
-
-  if (!CECS_HAS_COMPONENT(&sig, CECS_MAX_COMPONENT)) {
-    printf("Didn't find component!\n");
+  for (size_t i = 0; i < 1; ++i) {
+    move_system();
   }
 
   return 0;
