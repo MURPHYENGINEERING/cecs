@@ -32,11 +32,18 @@ int main()
   //for (size_t i = 0; i < 10; ++i) {
   //  move_system();
   //}
-  signature_t sig;
-  sig.components[3] = 0xff00000000000000;
+  cecs_sig_t sig;
 
-  if (CECS_HAS_COMPONENT(&sig, 255u)) {
+  CECS_ADD_COMPONENT(&sig, 1023u);
+
+  if (CECS_HAS_COMPONENT(&sig, 1023u)) {
     printf("Found component!\n");
+  }
+
+  CECS_REMOVE_COMPONENT(&sig, 1023u);
+
+  if (!CECS_HAS_COMPONENT(&sig, 1023u)) {
+    printf("Didn't find component!\n");
   }
 
   return 0;
