@@ -9,24 +9,24 @@ typedef cecs_id_t cecs_entity_t;
 typedef cecs_id_t cecs_component_id_t;
 typedef void cecs_iter_t;
 
-#define CECS_N_COMPONENTS  1024u
-#define CECS_MAX_COMPONENT ((cecs_component_id_t)(CECS_N_COMPONENTS - 1ull))
+#define CECS_N_COMPONENTS  (cecs_component_id_t)1024u
+#define CECS_MAX_COMPONENT ((cecs_component_id_t)(CECS_N_COMPONENTS - (cecs_component_id_t)1u))
 
-#define CECS_COMPONENT(type) (1u)
+#define CECS_COMPONENT(type) (cecs_component_id_t)(1u)
 
 /** Convert a component ID to an index into a signature bit field array. */
 #define CECS_COMPONENT_TO_INDEX(component) \
-  ((component) / (8ull * sizeof(cecs_component_id_t)))
+  ((component) / ((cecs_component_id_t)8u * sizeof(cecs_component_id_t)))
 
 /** Convert a component ID to the LSB into the appropriate index into the
  * signature bit field array. */
 #define CECS_COMPONENT_TO_LSB(component) \
-  ((component) % (8ull * sizeof(cecs_component_id_t)))
+  ((component) % ((cecs_component_id_t)8u * sizeof(cecs_component_id_t)))
 
 /** Convert a component ID to the bit pattern representing it in the
  * appropriate index into the signature bit field array. */
 #define CECS_COMPONENT_TO_BITS(component) \
-  (1ull << CECS_COMPONENT_TO_LSB(component))
+  ((cecs_component_id_t)1u << CECS_COMPONENT_TO_LSB(component))
 
 /** Returns whether the given signature contains the specified component ID. */
 #define CECS_HAS_COMPONENT(signature, component)               \
