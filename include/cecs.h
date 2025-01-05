@@ -9,7 +9,7 @@ typedef cecs_id_t cecs_entity_t;
 typedef cecs_id_t cecs_component_id_t;
 typedef void *cecs_iter_t;
 
-#define CECS_N_COMPONENTS (cecs_component_id_t)1024u
+#define CECS_N_COMPONENTS ((cecs_component_id_t)1024u)
 #define CECS_MAX_COMPONENT \
   ((cecs_component_id_t)(CECS_N_COMPONENTS - (cecs_component_id_t)1u))
 
