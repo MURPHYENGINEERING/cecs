@@ -29,8 +29,14 @@ int main()
 {
   printf("Hello, world!\n");
 
-  for (size_t i = 0; i < 10; ++i) {
-    move_system();
+  //for (size_t i = 0; i < 10; ++i) {
+  //  move_system();
+  //}
+  signature_t sig;
+  sig.components[3] = 0xff00000000000000;
+
+  if (CECS_HAS_COMPONENT(&sig, 255u)) {
+    printf("Found component!\n");
   }
 
   return 0;
