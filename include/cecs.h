@@ -7,10 +7,11 @@
 typedef uint64_t cecs_id_t;
 typedef cecs_id_t cecs_entity_t;
 typedef cecs_id_t cecs_component_id_t;
-typedef void cecs_iter_t;
+typedef void *cecs_iter_t;
 
-#define CECS_N_COMPONENTS  (cecs_component_id_t)1024u
-#define CECS_MAX_COMPONENT ((cecs_component_id_t)(CECS_N_COMPONENTS - (cecs_component_id_t)1u))
+#define CECS_N_COMPONENTS (cecs_component_id_t)1024u
+#define CECS_MAX_COMPONENT \
+  ((cecs_component_id_t)(CECS_N_COMPONENTS - (cecs_component_id_t)1u))
 
 #define CECS_COMPONENT(type) (cecs_component_id_t)(1u)
 
@@ -34,7 +35,7 @@ typedef void cecs_iter_t;
    & CECS_COMPONENT_TO_BITS(component))
 
 /** Add the specified component ID to the given signature. */
-#define CECS_ADD_COMPONENT(signature, component)              \
+#define CECS_ADD_COMPONENT(signature, component)               \
   ((signature)->components[CECS_COMPONENT_TO_INDEX(component)] \
    |= CECS_COMPONENT_TO_BITS(component))
 
