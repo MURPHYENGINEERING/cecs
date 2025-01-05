@@ -10,8 +10,8 @@ typedef struct {
 } position_t, velocity_t;
 
 
-cecs_component_id_t POSITION_ID = CECS_COMPONENT(position_t);
-cecs_component_id_t VELOCITY_ID = CECS_COMPONENT(velocity_t);
+static const cecs_component_id_t POSITION_ID = CECS_COMPONENT(position_t);
+static const cecs_component_id_t VELOCITY_ID = CECS_COMPONENT(velocity_t);
 
 
 void move_system()
@@ -34,15 +34,15 @@ int main()
   //}
   cecs_sig_t sig;
 
-  CECS_ADD_COMPONENT(&sig, 1023u);
+  CECS_ADD_COMPONENT(&sig, CECS_MAX_COMPONENT);
 
-  if (CECS_HAS_COMPONENT(&sig, 1023u)) {
+  if (CECS_HAS_COMPONENT(&sig, CECS_MAX_COMPONENT)) {
     printf("Found component!\n");
   }
 
-  CECS_REMOVE_COMPONENT(&sig, 1023u);
+  CECS_REMOVE_COMPONENT(&sig, CECS_MAX_COMPONENT);
 
-  if (!CECS_HAS_COMPONENT(&sig, 1023u)) {
+  if (!CECS_HAS_COMPONENT(&sig, CECS_MAX_COMPONENT)) {
     printf("Didn't find component!\n");
   }
 
