@@ -17,35 +17,25 @@ CECS_COMPONENT_DECL(velocity_t);
 
 void move_system()
 {
-  cecs_iter_t it        = cecs_query(velocity_t);
+  cecs_iter_t it        = cecs_query(velocity_t, position_t);
   
-  if (CECS_HAS_COMPONENT(&it.archetype->sig, CECS_ID_OF(position_t))) {
-    printf("Component detected: POSITION\n");
-  }
-  if (CECS_HAS_COMPONENT(&it.archetype->sig, CECS_ID_OF(velocity_t))) {
-    printf("Component detected: VELOCITY\n");
-  }
-
   cecs_entity_t *entity = it.first;
   while  (entity != it.end) {
     position_t *pos = cecs_get(it, entity, position_t);
     velocity_t *vel = cecs_get(it, entity, velocity_t);
 
-    (void)pos;
-    (void)vel;
-
-    printf("[velocity] %llu\n", *entity);
+    printf("[position, velocity] %llu\n", *entity);
 
     ++entity;
 
-    // pos->x += vel->x;
-    // pos->y += vel->y;
+    pos->x += vel->x;
+    pos->y += vel->y;
   }
 
-  it = cecs_query(position_t, velocity_t);
+  it = cecs_query(velocity_t);
   entity = it.first;
   while (entity != it.end) {
-    printf("[position, velocity] %llu\n", *entity);
+    printf("[velocity] %llu\n", *entity);
 
     ++entity;
   } 
