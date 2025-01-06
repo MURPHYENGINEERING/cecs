@@ -10,42 +10,37 @@ typedef struct {
 } position_t, velocity_t;
 
 
+typedef struct {
+  uint16_t hp;
+} health_t;
+
+
 CECS_COMPONENT_DECL(position_t);
 CECS_COMPONENT_DECL(velocity_t);
+CECS_COMPONENT_DECL(health_t);
 
 
 
 void move_system()
 {
-  cecs_iter_t it        = cecs_query(velocity_t, position_t);
-  
-  cecs_entity_t *entity = it.first;
-  while  (entity != it.end) {
-    position_t *pos = cecs_get(it, entity, position_t);
-    velocity_t *vel = cecs_get(it, entity, velocity_t);
+  cecs_iter_t it;
+  cecs_query(&it, velocity_t, position_t, health_t);
 
-    printf("[position, velocity] %llu\n", *entity);
+  cecs_entity_t entity;
+  while  ((entity = cecs_iter_next(&it))) {
+    position_t *pos = cecs_get(entity, position_t);
+    velocity_t *vel = cecs_get(entity, velocity_t);
+    health_t *health = cecs_get(entity, health_t);
 
-    ++entity;
-
-    pos->x += vel->x;
-    pos->y += vel->y;
-  }
-
-  it = cecs_query(velocity_t);
-  entity = it.first;
-  while (entity != it.end) {
-    printf("[velocity] %llu\n", *entity);
+    printf("[position, velocity] %llu\n", entity);
 
     ++entity;
-  } 
-  
-  it = cecs_query(position_t);
-  entity = it.first;
-  while (entity != it.end) {
-    printf("[position] %llu\n", *entity);
 
-    ++entity;
+    (void)health;
+    (void)pos;
+    (void)vel;
+    //pos->x += vel->x;
+    //pos->y += vel->y;
   }
 }
 
@@ -56,17 +51,18 @@ int main()
 
   CECS_COMPONENT(position_t);
   CECS_COMPONENT(velocity_t);
+  CECS_COMPONENT(health_t);
 
   /* 0 */
-  cecs_entity_t entity = cecs_create(velocity_t);
+  cecs_entity_t entity = cecs_create(health_t, velocity_t);
   
   /* 1 */
-  entity = cecs_create(velocity_t);
+  entity = cecs_create(health_t, velocity_t);
   cecs_add(entity, position_t);
   //cecs_remove(entity, velocity_t);
 
   /* 2 */
-  entity = cecs_create(velocity_t, position_t);
+  entity = cecs_create(health_t, velocity_t, position_t);
   cecs_remove(entity, position_t);
 
   (void)entity;
