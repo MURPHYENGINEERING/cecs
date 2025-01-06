@@ -21,7 +21,7 @@ static cecs_archetype_t *archetypes_by_entity[CECS_N_ENTITIES];
 static cecs_entity_t n_entities = 0;
 
 
-static bool sigs_are_equal(cecs_sig_t *lhs, cecs_sig_t *rhs)
+static bool sigs_are_equal(const cecs_sig_t *lhs, const cecs_sig_t *rhs)
 {
   for (cecs_component_id_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     if (lhs->components[i] != rhs->components[i]) {
@@ -33,7 +33,7 @@ static bool sigs_are_equal(cecs_sig_t *lhs, cecs_sig_t *rhs)
 }
 
 
-static void sig_union(cecs_sig_t *target, cecs_sig_t *with)
+static void sig_union(cecs_sig_t *target, const cecs_sig_t *with)
 {
   for (cecs_component_id_t i = 0; i  < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     target->components[i] |= with->components[i];
@@ -41,7 +41,7 @@ static void sig_union(cecs_sig_t *target, cecs_sig_t *with)
 }
 
 
-static void sig_remove(cecs_sig_t *target, cecs_sig_t *to_remove)
+static void sig_remove(cecs_sig_t *target, const cecs_sig_t *to_remove)
 {
   for (cecs_component_id_t i = 0; i  < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     target->components[i] &= ~to_remove->components[i];
@@ -49,7 +49,7 @@ static void sig_remove(cecs_sig_t *target, cecs_sig_t *to_remove)
 }
 
 
-static cecs_sig_t components_to_sig(cecs_component_id_t n, va_list components)
+static cecs_sig_t components_to_sig(const cecs_component_id_t n, va_list components)
 {
   cecs_sig_t sig;
   memset(&sig, 0u, sizeof(sig));
@@ -63,13 +63,13 @@ static cecs_sig_t components_to_sig(cecs_component_id_t n, va_list components)
 }
 
 
-static void add_entity_to_archetype(cecs_entity_t entity, cecs_archetype_t *archetype)
+static void add_entity_to_archetype(const cecs_entity_t entity, cecs_archetype_t *archetype)
 {
   archetype->entities[archetype->n_entities++] = entity;
 }
 
 
-static void remove_entity_from_archetype(cecs_entity_t entity, cecs_archetype_t *archetype)
+static void remove_entity_from_archetype(const cecs_entity_t entity, cecs_archetype_t *archetype)
 {
   if (archetype->n_entities > 1) {
     for (cecs_entity_t i = 0; i < archetype->n_entities; ++i) {
@@ -85,7 +85,7 @@ static void remove_entity_from_archetype(cecs_entity_t entity, cecs_archetype_t 
 }
 
 
-static cecs_archetype_t *get_or_add_archetype(cecs_sig_t *sig)
+static cecs_archetype_t *get_or_add_archetype(const cecs_sig_t *sig)
 {
   for (size_t i = 0; i < n_archetypes; ++i) {
     if (sigs_are_equal(&archetypes[i].sig, sig)) {
@@ -98,7 +98,7 @@ static cecs_archetype_t *get_or_add_archetype(cecs_sig_t *sig)
 }
 
 
-cecs_iter_t _cecs_query(cecs_component_id_t n, ...)
+cecs_iter_t _cecs_query(const cecs_component_id_t n, ...)
 {
   va_list components;
 
