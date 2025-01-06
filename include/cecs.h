@@ -6,7 +6,7 @@
 
 typedef unsigned char bool;
 #define false ((bool)0u)
-#define true  ((bool)0u)
+#define true  ((bool)1u)
 
 
 /** An ID tracks an element of data in the CECS system */
@@ -25,10 +25,8 @@ extern cecs_component_id_t CECS_NEXT_COMPONENT_ID;
 #define CECS_SIZE_OF(type) __cecs_##type##_size
 
 
-/** Maximum number of entities that can implement a particular archetype.
- * This is not the maximum number of entities that can exist, only the maximum
- * number that can have the same archetype. */
-#define CECS_N_ENTITIES ((cecs_entity_t)65536u)
+/** Maximum number of entities that can exist at the same time */
+#define CECS_N_ENTITIES ((cecs_entity_t)(1024ull * 1024ull))
 /** Maximum entity ID based on `CECS_N_ENTITIES` */
 #define CECS_MAX_ENTITY ((cecs_entity_t)(CECS_N_ENTITIES - (cecs_entity_t)1u))
 
@@ -103,6 +101,14 @@ extern cecs_component_id_t CECS_NEXT_COMPONENT_ID;
 #define cecs_create(...) \
   _cecs_create(FOR_EACH_NARG(__VA_ARGS__), FOR_EACH(CECS_ID_OF, __VA_ARGS__))
 
+/** Add one or more components to the given entity */
+#define cecs_add(entity, ...) \
+  _cecs_add(entity, FOR_EACH_NARG(__VA_ARGS__), FOR_EACH(CECS_ID_OF, __VA_ARGS__))
+
+/** Remove one or more components from the given entity */
+#define cecs_remove(entity, ...) \
+  _cecs_remove(entity, FOR_EACH_NARG(__VA_ARGS__), FOR_EACH(CECS_ID_OF, __VA_ARGS__))
+
 /** Get an iterator over entities that have the specified components */
 #define cecs_query(...) \
   _cecs_query(FOR_EACH_NARG(__VA_ARGS__), FOR_EACH(CECS_ID_OF, __VA_ARGS__))
@@ -157,10 +163,10 @@ void *_cecs_get(cecs_iter_t *it, cecs_entity_t *entity, cecs_component_id_t id, 
 cecs_entity_t _cecs_create(cecs_component_id_t n, ...);
 
 /** Add the given components to the specified entity */
-cecs_archetype_t *cecs_add(cecs_entity_t entity, cecs_component_id_t n, ...);
+cecs_archetype_t *_cecs_add(cecs_entity_t entity, cecs_component_id_t n, ...);
 
 /** Remove the given components from the specified entity */
-cecs_archetype_t *cecs_remove(cecs_entity_t entity, cecs_component_id_t n, ...);
+cecs_archetype_t *_cecs_remove(cecs_entity_t entity, cecs_component_id_t n, ...);
 
 
 #endif
