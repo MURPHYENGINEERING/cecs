@@ -17,7 +17,7 @@ CECS_COMPONENT_DECL(velocity_t);
 
 void move_system()
 {
-  cecs_iter_t it        = cecs_query(position_t, velocity_t);
+  cecs_iter_t it        = cecs_query(velocity_t);
   
   if (CECS_HAS_COMPONENT(&it.archetype->sig, CECS_ID_OF(position_t))) {
     printf("Component detected: POSITION\n");
@@ -25,21 +25,37 @@ void move_system()
   if (CECS_HAS_COMPONENT(&it.archetype->sig, CECS_ID_OF(velocity_t))) {
     printf("Component detected: VELOCITY\n");
   }
-  
+
   cecs_entity_t *entity = it.first;
   while  (entity != it.end) {
-    position_t *pos = (position_t *)cecs_get(it, entity, position_t);
-    velocity_t *vel = (velocity_t *)cecs_get(it, entity, velocity_t);
+    position_t *pos = cecs_get(it, entity, position_t);
+    velocity_t *vel = cecs_get(it, entity, velocity_t);
 
     (void)pos;
     (void)vel;
 
-    printf("Entity: %p\n", entity);
+    printf("[velocity] %llu\n", *entity);
 
     ++entity;
 
     // pos->x += vel->x;
     // pos->y += vel->y;
+  }
+
+  it = cecs_query(position_t, velocity_t);
+  entity = it.first;
+  while (entity != it.end) {
+    printf("[position, velocity] %llu\n", *entity);
+
+    ++entity;
+  } 
+  
+  it = cecs_query(position_t);
+  entity = it.first;
+  while (entity != it.end) {
+    printf("[position] %llu\n", *entity);
+
+    ++entity;
   }
 }
 
@@ -51,9 +67,19 @@ int main()
   CECS_COMPONENT(position_t);
   CECS_COMPONENT(velocity_t);
 
-  cecs_entity_t entity = cecs_create(position_t, velocity_t);
+  /* 0 */
+  cecs_entity_t entity = cecs_create(velocity_t);
+  
+  /* 1 */
+  entity = cecs_create(velocity_t);
+  cecs_add(entity, position_t);
+  cecs_remove(entity, velocity_t);
+
+  /* 2 */
+  entity = cecs_create(velocity_t, position_t);
 
   (void)entity;
+
 
   for (size_t i = 0; i < 1; ++i) {
     move_system();
