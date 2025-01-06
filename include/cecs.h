@@ -4,12 +4,17 @@
 #include <stdint.h>
 
 
+typedef unsigned char bool;
+#define false ((bool)0u)
+#define true  ((bool)0u)
+
+
 /** An ID tracks an element of data in the CECS system */
 typedef uint64_t cecs_id_t;
 /** Represents an object that composes over components */
 typedef cecs_id_t cecs_entity_t;
 /** A component is a struct of data that can be composed to form an entity's
-  * state */
+ * state */
 typedef cecs_id_t cecs_component_id_t;
 
 /** Used to track the ID that will be assigned to the next component defined */
@@ -17,9 +22,9 @@ extern cecs_component_id_t CECS_NEXT_COMPONENT_ID;
 
 
 /** Maximum number of entities that can implement a particular archetype.
-  * This is not the maximum number of entities that can exist, only the maximum
-  * number that can have the same archetype. */
-#define CECS_N_ENTITIES ((cecs_entity_t)8192u)
+ * This is not the maximum number of entities that can exist, only the maximum
+ * number that can have the same archetype. */
+#define CECS_N_ENTITIES ((cecs_entity_t)65536u)
 /** Maximum entity ID based on `CECS_N_ENTITIES` */
 #define CECS_MAX_ENTITY ((cecs_entity_t)(CECS_N_ENTITIES - (cecs_entity_t)1u))
 
@@ -27,9 +32,6 @@ extern cecs_component_id_t CECS_NEXT_COMPONENT_ID;
 #define CECS_N_COMPONENTS ((cecs_component_id_t)1024u)
 #define CECS_MAX_COMPONENT \
   ((cecs_component_id_t)(CECS_N_COMPONENTS - (cecs_component_id_t)1u))
-
-
-#define CECS_COMPONENT(type) (cecs_component_id_t)(CECS_NEXT_COMPONENT_ID++)
 
 /** Convert a component ID to an index into a signature bit field array. */
 #define CECS_COMPONENT_TO_INDEX(component) \
@@ -60,6 +62,46 @@ extern cecs_component_id_t CECS_NEXT_COMPONENT_ID;
 #define CECS_REMOVE_COMPONENT(signature, component)            \
   ((signature)->components[CECS_COMPONENT_TO_INDEX(component)] \
    &= ~CECS_COMPONENT_TO_BITS(component))
+
+
+#define CECS_COMPONENT_DECL(type)                             \
+  static const size_t __cecs_##type##_size            = (size_t)0u; \
+  static cecs_component_id_t __cecs_##type##_id = (cecs_component_id_t)0u
+
+#define CECS_COMPONENT(type) \
+  __cecs_##type##_id = (cecs_component_id_t)(CECS_NEXT_COMPONENT_ID++)
+
+
+#define CECS_ID_OF(type) __cecs_##type##_id
+
+#define CONCATENATE(arg1, arg2)   CONCATENATE1(arg1, arg2)
+#define CONCATENATE1(arg1, arg2)  CONCATENATE2(arg1, arg2)
+#define CONCATENATE2(arg1, arg2)  arg1##arg2
+
+#define FOR_EACH_1(what, x, ...) what(x)
+#define FOR_EACH_2(what, x, ...) what(x), FOR_EACH_1(what, __VA_ARGS__)
+#define FOR_EACH_3(what, x, ...) what(x), FOR_EACH_2(what, __VA_ARGS__)
+#define FOR_EACH_4(what, x, ...) what(x), FOR_EACH_3(what, __VA_ARGS__)
+#define FOR_EACH_5(what, x, ...) what(x), FOR_EACH_4(what, __VA_ARGS__)
+#define FOR_EACH_6(what, x, ...) what(x), FOR_EACH_5(what, __VA_ARGS__)
+#define FOR_EACH_7(what, x, ...) what(x), FOR_EACH_6(what, __VA_ARGS__)
+#define FOR_EACH_8(what, x, ...) what(x), FOR_EACH_7(what, __VA_ARGS__)
+
+#define FOR_EACH_NARG(...) FOR_EACH_NARG_(__VA_ARGS__, FOR_EACH_RSEQ_N())
+#define FOR_EACH_NARG_(...) FOR_EACH_ARG_N(__VA_ARGS__) 
+#define FOR_EACH_ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, N, ...) N 
+#define FOR_EACH_RSEQ_N() 8, 7, 6, 5, 4, 3, 2, 1, 0
+
+#define FOR_EACH_(N, what, x, ...) CONCATENATE(FOR_EACH_, N)(what, x, __VA_ARGS__)
+#define FOR_EACH(what, x, ...) FOR_EACH_(FOR_EACH_NARG(x, __VA_ARGS__), what, x, __VA_ARGS__)
+
+#define PRN_STRUCT_OFFSETS_(structure, field) printf(STRINGIZE(structure)":"STRINGIZE(field)" - offset = %d\n", offsetof(structure, field));
+#define PRN_STRUCT_OFFSETS(field) PRN_STRUCT_OFFSETS_(struct a, field)
+
+#define cecs_get(it, entity, type) _cecs_get(it, entity, CECS_ID_OF(type))
+
+#define cecs_create(...) \
+  _cecs_create(FOR_EACH_NARG(__VA_ARGS__), FOR_EACH(CECS_ID_OF, __VA_ARGS__))
 
 
 /** A signature represents the components implemented by a type as a bit set. */
@@ -98,17 +140,23 @@ typedef struct {
 
 /** Maximum number of combinations of components that can be represented */
 #define CECS_N_ARCHETYPES 8192u
-/** This is where the actual entity data gets stored as arrays of entity IDs per
-  * archetype */
-extern cecs_archetype_t cecs_archetypes[CECS_N_ARCHETYPES];
 
 
 /** Return an iterator over the entities representing the archetype specified in
-  * the varargs parameter */
-cecs_iter_t cecs_query(size_t n, ...);
+ * the varargs parameter */
+cecs_iter_t cecs_query(cecs_component_id_t n, ...);
 /** Get a pointer to the component implemented by the specified entity, drawing
-  * from the given entity iterator over an archetype */
-void *cecs_get(cecs_iter_t *it, cecs_entity_t *entity, cecs_component_id_t id);
+ * from the given entity iterator over an archetype */
+void *_cecs_get(cecs_iter_t *it, cecs_entity_t *entity, cecs_component_id_t id);
+
+/** Create an entity with the given components */
+cecs_entity_t _cecs_create(cecs_component_id_t n, ...);
+
+/** Add the given components to the specified entity */
+cecs_archetype_t *cecs_add(cecs_entity_t entity, cecs_component_id_t n, ...);
+
+/** Remove the given components from the specified entity */
+cecs_archetype_t *cecs_remove(cecs_entity_t entity, cecs_component_id_t n, ...);
 
 
 #endif
