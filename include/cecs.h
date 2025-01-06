@@ -25,12 +25,6 @@ extern cecs_component_id_t CECS_NEXT_COMPONENT_ID;
 #define CECS_SIZE_OF(type) __cecs_##type##_size
 
 
-/** Maximum number of entities that can exist at the same time */
-#define CECS_N_ENTITIES ((cecs_entity_t)(1024ull * 1024ull))
-/** Maximum entity ID based on `CECS_N_ENTITIES` */
-#define CECS_MAX_ENTITY ((cecs_entity_t)(CECS_N_ENTITIES - (cecs_entity_t)1u))
-
-
 #define CECS_N_COMPONENTS ((cecs_component_id_t)1024u)
 #define CECS_MAX_COMPONENT \
   ((cecs_component_id_t)(CECS_N_COMPONENTS - (cecs_component_id_t)1u))
@@ -132,8 +126,9 @@ typedef struct {
   void *components[CECS_N_COMPONENTS];
   /** Number of entities implementing this archetype */
   size_t n_entities;
+  size_t cap_entities;
   /** Array of entities implementing this archetype */
-  cecs_entity_t entities[CECS_N_ENTITIES];
+  cecs_entity_t *entities;
 } cecs_archetype_t;
 
 

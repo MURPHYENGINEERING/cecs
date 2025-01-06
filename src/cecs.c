@@ -12,7 +12,7 @@ cecs_component_id_t CECS_NEXT_COMPONENT_ID = (cecs_component_id_t) 0u;
 
 /** This is where the actual entity data gets stored as arrays of entity IDs per
   * archetype */
-static cecs_archetype_t archetypes[CECS_N_ARCHETYPES];
+static cecs_archetype_t archetypes[CECS_N_ARCHETYPES] = {0};
 static size_t n_archetypes = 0;
 
 /** The number of entities currently living in the world */
@@ -124,7 +124,16 @@ static cecs_sig_t components_to_sig(const cecs_component_id_t n, va_list compone
 
 static void add_entity_to_archetype(const cecs_entity_t entity, cecs_archetype_t *archetype)
 {
-  archetype->entities[archetype->n_entities++] = entity;
+  size_t i_entity = archetype->n_entities++;
+  if (archetype->n_entities >= archetype->cap_entities) {
+    if (archetype->cap_entities == 0) {
+      archetype->cap_entities = 512ull;
+    }
+    archetype->cap_entities *= 2;
+    archetype->entities = realloc(archetype->entities, archetype->cap_entities * sizeof(cecs_entity_t));
+  }
+
+  archetype->entities[i_entity] = entity;
   set_archetype_by_entity(entity, archetype);
 }
 
@@ -212,7 +221,6 @@ cecs_archetype_t *_cecs_add(cecs_entity_t entity, cecs_component_id_t n, ...)
   cecs_sig_t sig_to_add = components_to_sig(n, components);
   va_end(components);
 
-  /* Union the current components with the new components */
   sig_union(&sig, &sig_to_add);
 
   cecs_archetype_t *new_archetype = get_or_add_archetype(&sig);
