@@ -2,11 +2,12 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <cecs.h>
 
 
-cecs_component_id_t CECS_NEXT_COMPONENT_ID = 0ull;
+cecs_component_id_t CECS_NEXT_COMPONENT_ID = (cecs_component_id_t) 0u;
 
 /** This is where the actual entity data gets stored as arrays of entity IDs per
   * archetype */
@@ -48,19 +49,15 @@ static void sig_remove(cecs_sig_t *target, cecs_sig_t *to_remove)
 }
 
 
-static cecs_sig_t components_to_sig(cecs_component_id_t n, ...)
+static cecs_sig_t components_to_sig(cecs_component_id_t n, va_list components)
 {
-  va_list components;
-
   cecs_sig_t sig;
   memset(&sig, 0u, sizeof(sig));
 
-  va_start(components, n);
   for (size_t i = 0; i < n; ++i) {
     cecs_component_id_t id = va_arg(components, cecs_component_id_t);
     CECS_ADD_COMPONENT(&sig, id);
   }
-  va_end(components);
 
   return sig;
 }
@@ -101,7 +98,7 @@ static cecs_archetype_t *get_or_add_archetype(cecs_sig_t *sig)
 }
 
 
-cecs_iter_t cecs_query(cecs_component_id_t n, ...)
+cecs_iter_t _cecs_query(cecs_component_id_t n, ...)
 {
   va_list components;
 
@@ -120,11 +117,12 @@ cecs_iter_t cecs_query(cecs_component_id_t n, ...)
 }
 
 
-void *_cecs_get(cecs_iter_t *it, cecs_entity_t *entity, cecs_component_id_t id)
+void *_cecs_get(cecs_iter_t *it, cecs_entity_t *entity, cecs_component_id_t id, size_t size)
 {
   (void)it;
   (void)entity;
   (void)id;
+  (void)size;
   return NULL;
 }
 

@@ -21,6 +21,10 @@ typedef cecs_id_t cecs_component_id_t;
 extern cecs_component_id_t CECS_NEXT_COMPONENT_ID;
 
 
+#define CECS_ID_OF(type) __cecs_##type##_id
+#define CECS_SIZE_OF(type) __cecs_##type##_size
+
+
 /** Maximum number of entities that can implement a particular archetype.
  * This is not the maximum number of entities that can exist, only the maximum
  * number that can have the same archetype. */
@@ -65,14 +69,11 @@ extern cecs_component_id_t CECS_NEXT_COMPONENT_ID;
 
 
 #define CECS_COMPONENT_DECL(type)                             \
-  static const size_t __cecs_##type##_size            = (size_t)0u; \
-  static cecs_component_id_t __cecs_##type##_id = (cecs_component_id_t)0u
+  static const size_t CECS_SIZE_OF(type)            = (size_t)0u; \
+  static cecs_component_id_t CECS_ID_OF(type) = (cecs_component_id_t)0u
 
 #define CECS_COMPONENT(type) \
-  __cecs_##type##_id = (cecs_component_id_t)(CECS_NEXT_COMPONENT_ID++)
-
-
-#define CECS_ID_OF(type) __cecs_##type##_id
+  ((__cecs_##type##_id) = (cecs_component_id_t)(CECS_NEXT_COMPONENT_ID++))
 
 #define CONCATENATE(arg1, arg2)   CONCATENATE1(arg1, arg2)
 #define CONCATENATE1(arg1, arg2)  CONCATENATE2(arg1, arg2)
@@ -98,11 +99,13 @@ extern cecs_component_id_t CECS_NEXT_COMPONENT_ID;
 #define PRN_STRUCT_OFFSETS_(structure, field) printf(STRINGIZE(structure)":"STRINGIZE(field)" - offset = %d\n", offsetof(structure, field));
 #define PRN_STRUCT_OFFSETS(field) PRN_STRUCT_OFFSETS_(struct a, field)
 
-#define cecs_get(it, entity, type) _cecs_get(it, entity, CECS_ID_OF(type))
+#define cecs_get(it, entity, type) _cecs_get(&it, entity, CECS_ID_OF(type), CECS_SIZE_OF(type))
 
 #define cecs_create(...) \
   _cecs_create(FOR_EACH_NARG(__VA_ARGS__), FOR_EACH(CECS_ID_OF, __VA_ARGS__))
 
+#define cecs_query(...) \
+  _cecs_query(FOR_EACH_NARG(__VA_ARGS__), FOR_EACH(CECS_ID_OF, __VA_ARGS__))
 
 /** A signature represents the components implemented by a type as a bit set. */
 typedef struct {
@@ -144,10 +147,10 @@ typedef struct {
 
 /** Return an iterator over the entities representing the archetype specified in
  * the varargs parameter */
-cecs_iter_t cecs_query(cecs_component_id_t n, ...);
+cecs_iter_t _cecs_query(cecs_component_id_t n, ...);
 /** Get a pointer to the component implemented by the specified entity, drawing
  * from the given entity iterator over an archetype */
-void *_cecs_get(cecs_iter_t *it, cecs_entity_t *entity, cecs_component_id_t id);
+void *_cecs_get(cecs_iter_t *it, cecs_entity_t *entity, cecs_component_id_t id, size_t size);
 
 /** Create an entity with the given components */
 cecs_entity_t _cecs_create(cecs_component_id_t n, ...);
