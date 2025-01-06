@@ -15,7 +15,7 @@ typedef uint64_t cecs_id_t;
 /** Represents an object that composes over components */
 typedef cecs_id_t cecs_entity_t;
 
-#define CECS_ENTITY_INVALID ((cecs_entity_t)0ull)
+#define CECS_ENTITY_INVALID ((cecs_entity_t)0u)
 
 /** A component is a struct of data that can be composed to form an entity's
  * state */
@@ -145,7 +145,7 @@ struct cecs_entity_set_bucket {
   cecs_entity_t *entities;
 };
 
-#define N_ENTITY_SET_BUCKETS ((size_t)4096ull)
+#define N_ENTITY_SET_BUCKETS ((size_t)4096u)
 struct cecs_entity_set {
   struct cecs_entity_set_bucket buckets[N_ENTITY_SET_BUCKETS];
 };

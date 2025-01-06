@@ -16,7 +16,7 @@ static cecs_archetype_t archetypes[CECS_N_ARCHETYPES] = { 0 };
 static size_t n_archetypes                            = 0;
 
 
-static cecs_entity_t g_next_entity = CECS_ENTITY_INVALID + 1ull;
+static cecs_entity_t g_next_entity = CECS_ENTITY_INVALID + 1u;
 
 
 struct archetype_by_entity_entry {
@@ -31,11 +31,10 @@ struct archetype_by_entity_list {
   struct archetype_by_entity_entry *entries;
 };
 
-#define N_ARCHETYPE_BY_ENTITY_BUCKETS ((size_t)4096ull)
+#define N_ARCHETYPE_BY_ENTITY_BUCKETS ((size_t)4096u)
 /** Map from entity ID to the archetype it implements */
 static struct archetype_by_entity_list archetypes_by_entity[N_ARCHETYPE_BY_ENTITY_BUCKETS]
-  = { 0 };
-
+  = { 0u };
 
 
 cecs_entity_t cecs_iter_next(cecs_iter_t *it)
@@ -45,7 +44,7 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
     return CECS_ENTITY_INVALID;
   }
 
-  if (it->i_entity == it->set.buckets[it->i_bucket].count) {
+  if (it->i_entity >= it->set.buckets[it->i_bucket].count) {
     /* Skip empty buckets until we reach a non-empty one or the end of the set */
     while ((it->i_bucket < N_ARCHETYPE_BY_ENTITY_BUCKETS)
            && (it->set.buckets[it->i_bucket].count == 0)) {
@@ -53,10 +52,11 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
     }
 
     /* Restart at the beginning of the new bucket */
-    it->i_entity = 0ull;
+    it->i_entity = (size_t)0u;
   }
 
-  /* Check if we skipped empty buckets all the way to the end of the list */
+  /* Check if we skipped empty buckets all the way to the end of the list,
+     or if the bucket we skipped to is empty (redundant?) */
   if (it->i_bucket == N_ARCHETYPE_BY_ENTITY_BUCKETS) {
     return CECS_ENTITY_INVALID;
   }
@@ -68,7 +68,7 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
 
 static bool entity_set_put(struct cecs_entity_set *set, const cecs_entity_t entity)
 {
-  size_t i_bucket                  = (size_t)entity % N_ENTITY_SET_BUCKETS;
+  size_t i_bucket                       = (size_t)entity % N_ENTITY_SET_BUCKETS;
   struct cecs_entity_set_bucket *bucket = &set->buckets[i_bucket];
 
   /* Check for duplicates */
@@ -80,10 +80,10 @@ static bool entity_set_put(struct cecs_entity_set *set, const cecs_entity_t enti
 
   /* Check if we need to expand the bucket */
   if (bucket->count >= bucket->cap) {
-    if (bucket->cap == 0ull) {
-      bucket->cap = 32ull;
+    if (bucket->cap == 0u) {
+      bucket->cap = 32u;
     }
-    bucket->cap *= 2ull;
+    bucket->cap *= 2u;
     bucket->entities = realloc(bucket->entities, bucket->cap * sizeof(cecs_entity_t));
   }
 
@@ -112,7 +112,7 @@ static void set_archetype_by_entity(const cecs_entity_t entity, cecs_archetype_t
     if (list->cap == 0) {
       list->cap = 32u;
     }
-    list->cap *= 2ull;
+    list->cap *= 2u;
     list->entries
       = realloc(list->entries, list->cap * sizeof(struct archetype_by_entity_entry));
   }
@@ -186,7 +186,7 @@ static void add_entity_to_archetype(const cecs_entity_t entity, cecs_archetype_t
   size_t i_entity = archetype->n_entities++;
   if (archetype->n_entities >= archetype->cap_entities) {
     if (archetype->cap_entities == 0) {
-      archetype->cap_entities = 512ull;
+      archetype->cap_entities = 512u;
     }
     archetype->cap_entities *= 2;
     archetype->entities
@@ -266,22 +266,18 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_id_t n, ...)
   cecs_sig_t sig = components_to_sig(n, components);
   va_end(components);
 
-  // TODO: Get multiple archetypes based on component signature
-  //it.archetype = get_or_add_archetype(&sig);
+  memset(it, 0u, sizeof(*it));
 
-  //it.first = &it.archetype->entities[0];
-  //it.end   = &it.archetype->entities[it.archetype->n_entities];
-
-  memset(&it, 0u, sizeof(it));
-
-  cecs_entity_t n_entities = 0ull;
+  cecs_entity_t n_entities = 0u;
 
   for (cecs_component_id_t id = 0; id < CECS_N_COMPONENTS; ++id) {
     if (CECS_HAS_COMPONENT(&sig, id)) {
       cecs_archetype_t *archetype = get_archetype_by_component(id);
-      for (size_t i = 0; i < archetype->n_entities; ++i) {
-        if (entity_set_put(&it->set, archetype->entities[i])) {
-          ++n_entities;
+      if (archetype) {
+        for (size_t i = 0; i < archetype->n_entities; ++i) {
+          if (entity_set_put(&it->set, archetype->entities[i])) {
+            ++n_entities;
+          }
         }
       }
     }
@@ -322,9 +318,7 @@ cecs_archetype_t *_cecs_add(cecs_entity_t entity, cecs_component_id_t n, ...)
   va_list components;
 
   cecs_archetype_t *prev_archetype = get_archetype_by_entity(entity);
-  assert(
-    prev_archetype != NULL && "Can't add component to entity that doesn't exist"
-  );
+  assert(prev_archetype && "Can't add component to entity that doesn't exist");
   cecs_sig_t sig = prev_archetype->sig;
 
   va_start(components, n);
@@ -352,8 +346,7 @@ cecs_archetype_t *_cecs_remove(cecs_entity_t entity, cecs_component_id_t n, ...)
 
   cecs_archetype_t *prev_archetype = get_archetype_by_entity(entity);
   assert(
-    prev_archetype != NULL
-    && "Can't remove component from entity that doesn't exist"
+    prev_archetype && "Can't remove component from entity that doesn't exist"
   );
   cecs_sig_t sig = prev_archetype->sig;
 

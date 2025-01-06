@@ -24,7 +24,9 @@ CECS_COMPONENT_DECL(health_t);
 void move_system()
 {
   cecs_iter_t it;
-  cecs_query(&it, velocity_t, position_t, health_t);
+  cecs_entity_t n_entities = cecs_query(&it, velocity_t, position_t, health_t);
+
+  printf("Found %llu entities\n", n_entities);
 
   cecs_entity_t entity;
   while  ((entity = cecs_iter_next(&it))) {
