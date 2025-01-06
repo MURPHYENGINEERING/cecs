@@ -1,12 +1,14 @@
+#include <memory.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include <memory.h>
 
 #include <cecs.h>
 
 
 cecs_component_id_t CECS_NEXT_COMPONENT_ID = 0ull;
+
+cecs_archetype_t cecs_archetypes[CECS_N_ARCHETYPES];
 
 
 cecs_iter_t cecs_query(size_t n, ...)
@@ -23,13 +25,17 @@ cecs_iter_t cecs_query(size_t n, ...)
   }
   va_end(components);
 
+  it.first = &cecs_archetypes[0].entities[0];
+  it.end = &cecs_archetypes[0].entities[2];
+
   return it;
 }
 
 
-void* cecs_get(cecs_iter_t* it, cecs_component_id_t id)
+void *cecs_get(cecs_iter_t *it, cecs_entity_t *entity, cecs_component_id_t id)
 {
   (void)it;
+  (void)entity;
   (void)id;
   return NULL;
 }
