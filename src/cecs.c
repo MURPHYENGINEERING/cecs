@@ -36,7 +36,7 @@ struct archetype_by_entity_list {
 static struct archetype_by_entity_list archetypes_by_entity[N_ARCHETYPE_BY_ENTITY_BUCKETS] = {0};
 
 
-static void put_archetype_by_entity(const cecs_entity_t entity, cecs_archetype_t *archetype)
+static void set_archetype_by_entity(const cecs_entity_t entity, cecs_archetype_t *archetype)
 {
   size_t i_bucket = (size_t) entity % N_ARCHETYPE_BY_ENTITY_BUCKETS;
   struct archetype_by_entity_list *list = &archetypes_by_entity[i_bucket];
@@ -49,11 +49,19 @@ static void put_archetype_by_entity(const cecs_entity_t entity, cecs_archetype_t
     list->entries = realloc(list->entries, list->cap * sizeof(struct archetype_by_entity_entry));
   }
 
+  /* If entity already exists in bucket, just overwrite its value */
+  for (size_t i = 0; i < list->count; ++i) {
+    struct archetype_by_entity_entry *entry = &list->entries[i];
+    if (entry->entity == entity) {
+      entry->archetype = archetype;
+      return;
+    }
+  }
+
+  /* Entity wasn't found in bucket; add a new entry to the bucket list */
   struct archetype_by_entity_entry *entry = &list->entries[list->count++];
   entry->entity = entity;
   entry->archetype = archetype;
-
-  printf("Added archetype by entity: %llu -> %p\n", entity, archetype);
 }
 
 
@@ -62,7 +70,6 @@ static cecs_archetype_t *get_archetype_by_entity(const cecs_entity_t entity)
   size_t i_bucket = (size_t) entity % N_ARCHETYPE_BY_ENTITY_BUCKETS;
   struct archetype_by_entity_list *list = &archetypes_by_entity[i_bucket];
 
-  printf("Count: %zu\n", list->count);
   for (size_t i = 0; i < list->count; ++i) {
     if (list->entries[i].entity == entity) {
       return list->entries[i].archetype;
@@ -118,21 +125,18 @@ static cecs_sig_t components_to_sig(const cecs_component_id_t n, va_list compone
 static void add_entity_to_archetype(const cecs_entity_t entity, cecs_archetype_t *archetype)
 {
   archetype->entities[archetype->n_entities++] = entity;
+  set_archetype_by_entity(entity, archetype);
 }
 
 
 static void remove_entity_from_archetype(const cecs_entity_t entity, cecs_archetype_t *archetype)
 {
-  if (archetype->n_entities > 1) {
-    for (cecs_entity_t i = 0; i < archetype->n_entities; ++i) {
-      if (archetype->entities[i] == entity) {
-        /* Put the last entity in the array into the removed entity's slot */
-        archetype->entities[i] = archetype->entities[--archetype->n_entities];
-      }
+  for (cecs_entity_t i = 0; i < archetype->n_entities; ++i) {
+    if (archetype->entities[i] == entity) {
+      /* Put the last entity in the array into the removed entity's slot */
+      archetype->entities[i] = archetype->entities[--archetype->n_entities];
+      return;
     }
-  } else if (archetype->n_entities == 1) {
-    /* Last entity in the array, just remove it */
-    --archetype->n_entities;
   }
 }
 
@@ -192,8 +196,6 @@ cecs_entity_t _cecs_create(cecs_component_id_t n, ...)
   
   add_entity_to_archetype(entity, archetype);
 
-  put_archetype_by_entity(entity, archetype);
-
   return entity;
 }
 
@@ -221,8 +223,6 @@ cecs_archetype_t *_cecs_add(cecs_entity_t entity, cecs_component_id_t n, ...)
 
   remove_entity_from_archetype(entity, prev_archetype);
   add_entity_to_archetype(entity, new_archetype);
-
-  put_archetype_by_entity(entity, new_archetype);
 
   return new_archetype;
 }
