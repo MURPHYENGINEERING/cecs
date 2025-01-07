@@ -458,6 +458,7 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
   FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
 
   if (!entry) {
+    /* Component doesn't exist */
     return;
   }
 
@@ -470,6 +471,7 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
   }
 
   if (i == entry->entities.count) {
+    /* Entity doesn't implement component */
     return;
   }
 
