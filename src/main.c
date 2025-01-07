@@ -74,7 +74,9 @@ int main()
 
   entity = cecs_create(velocity_t);
   cecs_add(entity, position_t);
-  //cecs_remove(entity, position_t);
+  cecs_remove(entity, position_t);
+  cecs_add(entity, position_t);
+  cecs_add(entity, health_t);
 
   (void)entity;
 

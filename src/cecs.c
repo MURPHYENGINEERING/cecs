@@ -537,6 +537,7 @@ void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...)
   sig_union(sig, &sig_to_add);
 
   add_entity_to_archetype(entity, get_or_add_archetype_by_sig(sig));
+  set_sig_by_entity(entity, sig);
 }
 
 
@@ -546,11 +547,16 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 
   cecs_sig_t *sig = get_sig_by_entity(entity);
 
+  remove_entity_from_archetype(entity, get_archetype_by_sig(sig));
+
   va_start(components, n);
   cecs_sig_t sig_to_remove = components_to_sig(n, components);
   va_end(components);
 
   sig_remove(sig, &sig_to_remove);
+
+  add_entity_to_archetype(entity, get_archetype_by_sig(sig));
+  set_sig_by_entity(entity, sig);
 }
 
 
