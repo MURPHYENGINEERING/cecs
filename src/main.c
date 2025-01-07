@@ -50,10 +50,9 @@ void move_system()
     printf("[position, velocity, health] %llu\n", entity);
 
     (void)health;
-    (void)pos;
-    (void)vel;
-    //pos->x += vel->x;
-    //pos->y += vel->y;
+    printf("Position: %f,%f     velocity: %f,%f\n", pos->x, pos->y, vel->x, vel->y);
+    pos->x += vel->x;
+    pos->y += vel->y;
   }
 }
 
@@ -66,9 +65,16 @@ int main()
   CECS_COMPONENT(velocity_t);
   CECS_COMPONENT(health_t);
 
+  position_t position = { .x = 0.25f, .y = 0.5f };
+  velocity_t velocity = { .x = 0.5f, .y = 0.75f };
+
   cecs_entity_t entity = cecs_create(health_t, position_t);
   
   entity = cecs_create(velocity_t, position_t);
+  cecs_add(entity, health_t);
+
+  cecs_set(entity, position_t, &position);
+  cecs_set(entity, velocity_t, &velocity);
 
   entity = cecs_create(velocity_t);
   cecs_add(entity, position_t);
@@ -76,9 +82,13 @@ int main()
   cecs_add(entity, position_t);
   cecs_add(entity, health_t);
 
+
+  cecs_set(entity, position_t, &position);
+  cecs_set(entity, velocity_t, &velocity);
+
   (void)entity;
 
-  for (size_t i = 0; i < 1; ++i) {
+  for (size_t i = 0; i < 2; ++i) {
     move_system();
   }
 

@@ -36,6 +36,7 @@ struct entity_list {
   cecs_entity_t *entities;
 };
 
+
 struct component_by_id_entry {
   cecs_component_t id;
   size_t size;
@@ -86,6 +87,25 @@ static struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKE
 
 #define N_COMPONENT_BY_ID_BUCKETS ((size_t)256u)
 static struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
+
+
+#define GROW_LIST_IF_NEEDED(list, min_size, entries, type)                  \
+  if ((list)->count >= (list)->cap) {                                       \
+    if ((list)->cap == 0u) {                                                \
+      (list)->cap = (min_size);                                             \
+    } else {                                                                \
+      (list)->cap *= 2u;                                                    \
+    }                                                                       \
+    (list)->entries = realloc((list)->entries, (list)->cap * sizeof(type)); \
+  }
+
+
+#define FIND_ENTRY_IN_BUCKET(bucket, identifier, search, result) \
+  for (size_t i = 0; i < (bucket)->count; ++i) {                 \
+    if ((bucket)->entries[i].identifier == (search)) {           \
+      (result) = &(bucket)->entries[i];                          \
+    }                                                            \
+  }
 
 
 static bool sigs_are_equal(const cecs_sig_t *lhs, const cecs_sig_t *rhs)
@@ -149,7 +169,7 @@ static void append_archetype_to_list(struct archetype *archetype, struct archety
       list->cap = 16u;
     }
     list->cap *= 2u;
-    list->elements = realloc(list->elements, list->cap * sizeof(struct archetype*));
+    list->elements = realloc(list->elements, list->cap * sizeof(struct archetype *));
   }
 
   list->elements[list->count++] = archetype;
@@ -180,7 +200,7 @@ static struct archetype *set_archetype_by_sig(const cecs_sig_t *sig, const struc
 {
   size_t i_bucket = 0;
   for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
-    i_bucket ^= (sig->components[i] % N_ARCHETYPE_BY_SIG_BUCKETS);
+    i_bucket ^= (size_t)(sig->components[i] % N_ARCHETYPE_BY_SIG_BUCKETS);
   }
 
   struct archetype_by_sig_bucket *bucket = &archetypes_by_sig[i_bucket];
@@ -218,7 +238,7 @@ static struct archetype *get_archetype_by_sig(const cecs_sig_t *sig)
 {
   size_t i_bucket = 0;
   for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
-    i_bucket ^= (sig->components[i] % N_ARCHETYPE_BY_SIG_BUCKETS);
+    i_bucket ^= (size_t)(sig->components[i] % N_ARCHETYPE_BY_SIG_BUCKETS);
   }
   struct archetype_by_sig_bucket *bucket = &archetypes_by_sig[i_bucket];
 
@@ -277,7 +297,7 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
 
 static bool put_entity_in_set(struct cecs_entity_set *set, const cecs_entity_t entity)
 {
-  size_t i_bucket = (size_t)entity % N_ENTITY_SET_BUCKETS;
+  size_t i_bucket = (size_t)(entity % N_ENTITY_SET_BUCKETS);
 
   struct cecs_entity_set_bucket *bucket = &set->buckets[i_bucket];
 
@@ -288,14 +308,7 @@ static bool put_entity_in_set(struct cecs_entity_set *set, const cecs_entity_t e
     }
   }
 
-  /* Check if we need to expand the bucket */
-  if (bucket->count >= bucket->cap) {
-    if (bucket->cap == 0u) {
-      bucket->cap = 32u;
-    }
-    bucket->cap *= 2u;
-    bucket->entities = realloc(bucket->entities, bucket->cap * sizeof(cecs_entity_t));
-  }
+  GROW_LIST_IF_NEEDED(bucket, 64u, entities, cecs_entity_t);
 
   /* Add an entry to the end of the bucket and increase the count */
   bucket->entities[bucket->count++] = entity;
@@ -306,7 +319,7 @@ static bool put_entity_in_set(struct cecs_entity_set *set, const cecs_entity_t e
 
 static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
 {
-  size_t i_bucket = (size_t)entity % N_SIG_BY_ENTITY_BUCKETS;
+  size_t i_bucket = (size_t)(entity % N_SIG_BY_ENTITY_BUCKETS);
 
   struct sig_by_entity_bucket *bucket = &sigs_by_entity[i_bucket];
 
@@ -319,15 +332,7 @@ static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
     }
   }
 
-  /* Grow the bucket if needed */
-  if (bucket->count >= bucket->cap) {
-    if (bucket->cap == 0) {
-      bucket->cap = 32u;
-    }
-    bucket->cap *= 2u;
-    bucket->entries
-      = realloc(bucket->entries, bucket->cap * sizeof(struct sig_by_entity_entry));
-  }
+  GROW_LIST_IF_NEEDED(bucket, 64u, entries, struct sig_by_entity_entry);
 
   /* Entity wasn't found in bucket; add a new entry to the bucket bucket */
   struct sig_by_entity_entry *entry = &bucket->entries[bucket->count++];
@@ -339,32 +344,60 @@ static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
 
 static cecs_sig_t *get_sig_by_entity(const cecs_entity_t entity)
 {
-  size_t i_bucket = (size_t)entity % N_SIG_BY_ENTITY_BUCKETS;
+  size_t i_bucket = (size_t)(entity % N_SIG_BY_ENTITY_BUCKETS);
 
   struct sig_by_entity_bucket *bucket = &sigs_by_entity[i_bucket];
 
-  for (size_t i = 0; i < bucket->count; ++i) {
-    if (bucket->entries[i].entity == entity) {
-      return &bucket->entries[i].sig;
-    }
-  }
+  struct sig_by_entity_entry *entry = NULL;
+  FIND_ENTRY_IN_BUCKET(bucket, entity, entity, entry);
 
-  return NULL;
+  if (entry) {
+    return &entry->sig;
+  } else {
+    return NULL;
+  }
 }
 
 
 static void append_entity_to_list(struct entity_list *list, const cecs_entity_t entity)
 {
-  /* Grow the list if needed */
-  if (list->count >= list->cap) {
-    if (list->cap == 0u) {
-      list->cap = 32u;
-    }
-    list->cap *= 2u;
-    list->entities = realloc(list->entities, list->cap * sizeof(cecs_entity_t));
+  GROW_LIST_IF_NEEDED(list, 64u, entities, cecs_entity_t);
+  list->entities[list->count++] = entity;
+}
+
+
+static struct component_by_id_entry *register_component(const cecs_component_t id, const size_t size)
+{
+  const size_t i_bucket = (size_t)(id % N_SIG_BY_ENTITY_BUCKETS);
+
+  struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
+
+  struct component_by_id_entry *entry = NULL;
+  FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
+
+  /* If component ID not found in bucket, */
+  if (!entry) {
+    GROW_LIST_IF_NEEDED(bucket, 32u, entries, struct component_by_id_entry);
+    entry = &bucket->entries[bucket->count++];
   }
 
-  list->entities[list->count++] = entity;
+  /* Populate the component ID and size */
+  entry->id   = id;
+  entry->size = size;
+
+  /* Grow the component store and entities list to a minimum starting size */
+  if (entry->entities.count >= entry->entities.cap) {
+    if (entry->entities.cap == 0u) {
+      entry->entities.cap = 64u;
+    } else {
+      entry->entities.cap *= 2u;
+    }
+    entry->data = realloc(entry->data, entry->entities.cap * size);
+    entry->entities.entities
+      = realloc(entry->entities.entities, entry->entities.cap * sizeof(cecs_entity_t));
+  }
+
+  return entry;
 }
 
 
@@ -373,33 +406,26 @@ static struct component_by_id_entry *add_entity_to_component(const cecs_componen
   struct component_by_id_entry *entry = NULL;
   struct entity_list *list            = NULL;
 
-  size_t i_bucket = (size_t)id % N_SIG_BY_ENTITY_BUCKETS;
+  const size_t i_bucket = (size_t)(id % N_SIG_BY_ENTITY_BUCKETS);
 
   struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
 
-  /* Find component in bucket */
-  for (size_t i = 0; i < bucket->count; ++i) {
-    if (bucket->entries[i].id == id) {
-      entry = &bucket->entries[i];
-      break;
-    }
-  }
+  FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
 
   /* If component ID not found in bucket, */
   if (!entry) {
-    /* Grow the bucket if needed */
-    if (bucket->count >= bucket->cap) {
-      if (bucket->cap == 0u) {
-        bucket->cap = 32u;
-      }
-      bucket->cap *= 2u;
-      bucket->entries
-        = realloc(bucket->entries, bucket->cap * sizeof(struct sig_by_entity_entry));
-    }
+    GROW_LIST_IF_NEEDED(bucket, 64u, entries, struct component_by_id_entry);
+
     entry = &bucket->entries[bucket->count++];
   }
 
-  entry->id = id;
+  /* Don't allow duplicates */
+  for (size_t i = 0; i < entry->entities.count; ++i) {
+    if (entry->entities.entities[i] == entity) {
+      return NULL;
+    }
+  }
+
   append_entity_to_list(&entry->entities, entity);
 
   return entry;
@@ -408,16 +434,13 @@ static struct component_by_id_entry *add_entity_to_component(const cecs_componen
 
 static struct component_by_id_entry *get_component_by_id(const cecs_component_t id)
 {
-  size_t i_bucket = (size_t)id % N_COMPONENT_BY_ID_BUCKETS;
+  size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
   struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
 
-  for (size_t i = 0; i < bucket->count; ++i) {
-    if (bucket->entries[i].id == id) {
-      return &bucket->entries[i];
-    }
-  }
+  struct component_by_id_entry *entry = NULL;
+  FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
 
-  return NULL;
+  return entry;
 }
 
 
@@ -431,6 +454,7 @@ static void add_entity_to_archetype(const cecs_entity_t entity, struct archetype
   }
 
   const size_t i_entity = archetype->n_entities++;
+
   if (archetype->n_entities >= archetype->cap_entities) {
     if (archetype->cap_entities == 0) {
       archetype->cap_entities = 512u;
@@ -489,9 +513,28 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
 
 void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
 {
-  (void)entity;
-  (void)id;
-  return NULL;
+  const size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
+
+  struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
+
+  struct component_by_id_entry *entry = NULL;
+  FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
+
+  assert(entry && "Can't get component that wasn't registered using CECS_COMPONENT()");
+
+  size_t i = 0u;
+  while (i < entry->entities.count) {
+    if (entry->entities.entities[i] == entity) {
+      break;
+    }
+    ++i;
+  }
+
+  if (i == entry->entities.count) {
+    return NULL;
+  }
+
+  return (void*)(((uint8_t*)entry->data) + (i * entry->size));
 }
 
 
@@ -507,6 +550,12 @@ cecs_entity_t _cecs_create(const cecs_component_t n, ...)
   set_sig_by_entity(entity, &sig);
 
   add_entity_to_archetype(entity, get_or_add_archetype_by_sig(&sig));
+
+  for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+    if (CECS_HAS_COMPONENT(&sig, i)) {
+      add_entity_to_component(i, entity);
+    }
+  }
 
   return entity;
 }
@@ -526,6 +575,12 @@ void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...)
 
   add_entity_to_archetype(entity, get_or_add_archetype_by_sig(sig));
   set_sig_by_entity(entity, sig);
+
+  for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+    if (CECS_HAS_COMPONENT(sig, i)) {
+      add_entity_to_component(i, entity);
+    }
+  }
 }
 
 
@@ -550,6 +605,20 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 
 void cecs_register_component(const cecs_component_t id, const size_t size)
 {
-  (void)id;
-  (void)size;
+  register_component(id, size);
+}
+
+
+bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data)
+{
+  struct component_by_id_entry *entry = get_component_by_id(id);
+
+  for (size_t i = 0; i < entry->entities.count; ++i) {
+    if (entry->entities.entities[i] == entity) {
+      memcpy(((uint8_t*)entry->data) + (i * entry->size), data, entry->size);
+      return true;
+    }
+  }
+
+  return false;
 }

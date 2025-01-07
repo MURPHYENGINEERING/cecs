@@ -114,6 +114,9 @@ extern cecs_component_t CECS_NEXT_COMPONENT_ID;
 #define cecs_query(it, ...) \
   _cecs_query(it, FOR_EACH_NARG(__VA_ARGS__), FOR_EACH(CECS_ID_OF, __VA_ARGS__))
 
+/** Assign a value to the specified component for the given type */
+#define cecs_set(entity, type, source) _cecs_set(entity, CECS_ID_OF(type), source);
+
 
 /** A signature represents the components implemented by a type as a bit set. */
 typedef struct {
@@ -161,6 +164,8 @@ void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...);
 
 /** Remove the given components from the specified entity */
 void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...);
+
+bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data);
 
 
 #endif
