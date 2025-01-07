@@ -421,7 +421,6 @@ static struct component_by_id_entry *register_component(const cecs_component_t i
 static void add_entity_to_component(const cecs_component_t id, const cecs_entity_t entity)
 {
   struct component_by_id_entry *entry = NULL;
-  struct entity_list *list            = NULL;
 
   const size_t i_bucket = (size_t)(id % N_SIG_BY_ENTITY_BUCKETS);
 
@@ -443,8 +442,8 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
     }
   }
 
-  GROW_LIST_IF_NEEDED(list, 64u, entities, cecs_entity_t);
-  list->entities[list->count++] = entity;
+  GROW_LIST_IF_NEEDED(&entry->entities, 64u, entities, cecs_entity_t);
+  entry->entities.entities[entry->entities.count++] = entity;
 }
 
 
