@@ -115,8 +115,8 @@ static struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS]
   }
 
 
-/** Find the entry in list `bucket` whose `identifier` matches `search` and 
-  * return it in `result` */
+/** Find the entry in list `bucket` whose `identifier` matches `search` and
+ * return it in `result` */
 #define FIND_ENTRY_IN_BUCKET(bucket, identifier, search, result) \
   for (size_t i = 0; i < (bucket)->count; ++i) {                 \
     if ((bucket)->entries[i].identifier == (search)) {           \
@@ -185,17 +185,17 @@ static cecs_sig_t components_to_sig(const cecs_component_t n, va_list components
 
 
 /** Append  the given archetype pointer to the archetype pointer list, growing
-  * if needed */
+ * if needed */
 static void append_archetype_to_list(struct archetype *archetype, struct archetype_list *list)
 {
-  GROW_LIST_IF_NEEDED(list, 32u, elements, struct archetype*);
+  GROW_LIST_IF_NEEDED(list, 32u, elements, struct archetype *);
 
   list->elements[list->count++] = archetype;
 }
 
 
 /** Get all the archetypes that contain the given signature.
-  * The caller is responsible for freeing the returned list. */
+ * The caller is responsible for freeing the returned list. */
 static struct archetype_list *get_archetypes_by_sig(const cecs_sig_t *sig)
 {
   struct archetype_list *list = malloc(sizeof(struct archetype_list));
@@ -216,7 +216,7 @@ static struct archetype_list *get_archetypes_by_sig(const cecs_sig_t *sig)
 
 
 /** Populate the sig->archetype map by assigning the value pointed to by the
-  * given archetype pointer to the map value */
+ * given archetype pointer to the map value */
 static struct archetype *set_archetype_by_sig(const cecs_sig_t *sig, const struct archetype *archetype)
 {
   size_t i_bucket = 0;
@@ -236,7 +236,7 @@ static struct archetype *set_archetype_by_sig(const cecs_sig_t *sig, const struc
   }
 
   /* Entity wasn't found in bucket. Check if we need to expand the bucket first
-  */
+   */
   GROW_LIST_IF_NEEDED(bucket, 64u, entries, struct archetype_by_sig_entry);
 
   /* Add a new entry to the bucket */
@@ -269,7 +269,7 @@ static struct archetype *get_archetype_by_sig(const cecs_sig_t *sig)
 
 
 /** Get the archetype implementing the given signature, or add an empty one and
-  * return that */
+ * return that */
 static struct archetype *get_or_add_archetype_by_sig(const cecs_sig_t *sig)
 {
   struct archetype *existing = get_archetype_by_sig(sig);
@@ -418,7 +418,7 @@ static struct component_by_id_entry *register_component(const cecs_component_t i
 
 
 /** Add a block of component data for the given entity */
-static struct component_by_id_entry *add_entity_to_component(const cecs_component_t id, const cecs_entity_t entity)
+static void add_entity_to_component(const cecs_component_t id, const cecs_entity_t entity)
 {
   struct component_by_id_entry *entry = NULL;
   struct entity_list *list            = NULL;
@@ -439,14 +439,50 @@ static struct component_by_id_entry *add_entity_to_component(const cecs_componen
   /* Don't allow duplicates */
   for (size_t i = 0; i < entry->entities.count; ++i) {
     if (entry->entities.entities[i] == entity) {
-      return NULL;
+      return;
     }
   }
 
   GROW_LIST_IF_NEEDED(list, 64u, entities, cecs_entity_t);
   list->entities[list->count++] = entity;
+}
 
-  return entry;
+
+static void remove_entity_from_component(const cecs_component_t id, const cecs_entity_t entity)
+{
+  struct component_by_id_entry *entry = NULL;
+  struct entity_list *list            = NULL;
+
+  const size_t i_bucket = (size_t)(id % N_SIG_BY_ENTITY_BUCKETS);
+
+  struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
+
+  FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
+
+  if (!entry) {
+    return;
+  }
+
+  size_t i = 0;
+  while (i < entry->entities.count) {
+    if (entry->entities.entities[i] == entity) {
+      break;
+    }
+    ++i;
+  }
+
+  if (i == entry->entities.count) {
+    return;
+  }
+
+  /* Overwrite the entry with the last entry in the list */
+  entry->entities.entities[i] = entry->entities.entities[--entry->entities.count];
+  /* Overwrite the entry data with the last entry data in the list*/
+  memcpy(
+    ((uint8_t *)entry->data) + (i * entry->size),
+    ((uint8_t *)entry->data) + (entry->entities.count * entry->size),
+    entry->size
+  );
 }
 
 
@@ -464,7 +500,7 @@ static struct component_by_id_entry *get_component_by_id(const cecs_component_t 
 
 
 /** Add the given entity to the specified archetype so we can easily find all
-  * entities implementing that archetype */
+ * entities implementing that archetype */
 static void add_entity_to_archetype(const cecs_entity_t entity, struct archetype *archetype)
 {
   /* Don't add duplicates */
@@ -503,8 +539,8 @@ static void remove_entity_from_archetype(const cecs_entity_t entity, struct arch
 
 
 /** Get an iterator over the entities that implement the given components.
-  * Returns the number of entities in the iterator.
-  */
+ * Returns the number of entities in the iterator.
+ */
 cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
 {
   va_list components;
@@ -546,7 +582,9 @@ void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
   struct component_by_id_entry *entry = NULL;
   FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
 
-  assert(entry && "Can't get component that wasn't registered using CECS_COMPONENT()");
+  assert(
+    entry && "Can't get component that wasn't registered using CECS_COMPONENT()"
+  );
 
   size_t i = 0u;
   while (i < entry->entities.count) {
@@ -560,7 +598,7 @@ void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
     return NULL;
   }
 
-  return (void*)(((uint8_t*)entry->data) + (i * entry->size));
+  return (void *)(((uint8_t *)entry->data) + (i * entry->size));
 }
 
 
@@ -605,7 +643,7 @@ void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...)
   set_sig_by_entity(entity, sig);
 
   for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
-    if (CECS_HAS_COMPONENT(sig, i)) {
+    if (CECS_HAS_COMPONENT(&sig_to_add, i)) {
       add_entity_to_component(i, entity);
     }
   }
@@ -629,6 +667,12 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 
   add_entity_to_archetype(entity, get_archetype_by_sig(sig));
   set_sig_by_entity(entity, sig);
+
+  for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+    if (CECS_HAS_COMPONENT(&sig_to_remove, i)) {
+      //remove_entity_from_component(i, entity);
+    }
+  }
 }
 
 
@@ -646,7 +690,7 @@ bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data
 
   for (size_t i = 0; i < entry->entities.count; ++i) {
     if (entry->entities.entities[i] == entity) {
-      memcpy(((uint8_t*)entry->data) + (i * entry->size), data, entry->size);
+      memcpy(((uint8_t *)entry->data) + (i * entry->size), data, entry->size);
       return true;
     }
   }
