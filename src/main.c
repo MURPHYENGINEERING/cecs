@@ -34,9 +34,7 @@ void move_system()
     velocity_t *vel = cecs_get(entity, velocity_t);
     health_t *health = cecs_get(entity, health_t);
 
-    printf("[position, velocity] %llu\n", entity);
-
-    ++entity;
+    printf("[position, velocity, health] %llu\n", entity);
 
     (void)health;
     (void)pos;
@@ -60,12 +58,12 @@ int main()
   
   /* 1 */
   entity = cecs_create(health_t, velocity_t);
-  cecs_add(entity, position_t);
+  //cecs_add(entity, position_t);
   //cecs_remove(entity, velocity_t);
 
   /* 2 */
   entity = cecs_create(health_t, velocity_t, position_t);
-  cecs_remove(entity, position_t);
+  //cecs_remove(entity, position_t);
 
   (void)entity;
 

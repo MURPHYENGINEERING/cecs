@@ -30,10 +30,18 @@ struct sig_by_entity_bucket {
 static struct sig_by_entity_bucket sigs_by_entity[N_SIG_BY_ENTITY_BUCKETS] = { 0u };
 
 
+struct entity_list {
+  cecs_entity_t *entities;
+  size_t count;
+  size_t cap;
+};
+
+
 struct component_by_id_entry {
   cecs_component_t id;
   size_t size;
   void *data;
+  struct entity_list entities;
 };
 
 struct component_by_id_bucket {
@@ -55,9 +63,8 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
 
   if (it->i_entity >= it->set.buckets[it->i_bucket].count) {
     /* Skip empty buckets until we reach a non-empty one or the end of the set */
-    while ((it->i_bucket < N_ENTITY_SET_BUCKETS)
+    while ((++it->i_bucket < N_ENTITY_SET_BUCKETS)
            && (it->set.buckets[it->i_bucket].count == 0)) {
-      ++it->i_bucket;
     }
 
     /* Restart at the beginning of the new bucket */
@@ -75,9 +82,10 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
 }
 
 
-static bool entity_set_put(struct cecs_entity_set *set, const cecs_entity_t entity)
+static bool put_entity_in_set(struct cecs_entity_set *set, const cecs_entity_t entity)
 {
-  size_t i_bucket                       = (size_t)entity % N_ENTITY_SET_BUCKETS;
+  size_t i_bucket = (size_t)entity % N_ENTITY_SET_BUCKETS;
+
   struct cecs_entity_set_bucket *bucket = &set->buckets[i_bucket];
 
   /* Check for duplicates */
@@ -106,6 +114,7 @@ static bool entity_set_put(struct cecs_entity_set *set, const cecs_entity_t enti
 static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
 {
   size_t i_bucket = (size_t)entity % N_SIG_BY_ENTITY_BUCKETS;
+
   struct sig_by_entity_bucket *bucket = &sigs_by_entity[i_bucket];
 
   /* If entity already exists in bucket, just overwrite its value */
@@ -138,6 +147,7 @@ static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
 static cecs_sig_t *get_sig_by_entity(const cecs_entity_t entity)
 {
   size_t i_bucket = (size_t)entity % N_SIG_BY_ENTITY_BUCKETS;
+
   struct sig_by_entity_bucket *bucket = &sigs_by_entity[i_bucket];
 
   for (size_t i = 0; i < bucket->count; ++i) {
@@ -162,51 +172,83 @@ static bool sigs_are_equal(const cecs_sig_t *lhs, const cecs_sig_t *rhs)
 }
 
 
-static void set_component_by_id(const cecs_component_t id, const size_t size, void *data)
+static void append_entity_to_list(struct entity_list *list, const cecs_entity_t entity)
 {
-  size_t i_bucket                       = (size_t)id % N_SIG_BY_ENTITY_BUCKETS;
-  struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
-
-  /* If entity already exists in bucket, just overwrite its value */
-  for (size_t i = 0; i < bucket->count; ++i) {
-    struct component_by_id_entry *entry = &bucket->entries[i];
-    if (entry->id == id) {
-      entry->size = size;
-      return;
+  /* Grow the list if needed */
+  if (list->count >= list->cap) {
+    if (list->cap == 0u) {
+      list->cap = 32u;
     }
+    list->cap *= 2u;
+    list->entities = realloc(list->entities, list->cap * sizeof(cecs_entity_t));
   }
 
-  /* Grow the bucket if needed */
-  if (bucket->count >= bucket->cap) {
-    if (bucket->cap == 0) {
-      bucket->cap = 32u;
-    }
-    bucket->cap *= 2u;
-    bucket->entries
-      = realloc(bucket->entries, bucket->cap * sizeof(struct sig_by_entity_entry));
-  }
-
-  /* Entity wasn't found in bucket; add a new entry to the bucket bucket */
-  struct component_by_id_entry *entry = &bucket->entries[bucket->count++];
-
-  entry->id   = id;
-  entry->size = size;
-  entry->data = data;
+  list->entities[list->count++] = entity;
 }
 
 
-static size_t get_component_by_id(const cecs_component_t id, void **data)
+static void move_entity_in_list(struct entity_list *list, const size_t src, const size_t dst)
+{
+  list->entities[dst] = list->entities[src];
+}
+
+
+static void move_component_data(void *data, const size_t size, const size_t src, const size_t dst)
+{
+  memcpy((uint8_t*)data + (size * dst), (uint8_t*)data + (size * src), size);
+}
+
+
+static struct component_by_id_entry *add_entity_to_component(const cecs_component_t id, const cecs_entity_t entity)
+{
+  struct component_by_id_entry *entry = NULL;
+  struct entity_list *list            = NULL;
+
+  size_t i_bucket = (size_t)id % N_SIG_BY_ENTITY_BUCKETS;
+
+  struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
+
+  /* Find component in bucket */
+  for (size_t i = 0; i < bucket->count; ++i) {
+    if (bucket->entries[i].id == id) {
+      entry = &bucket->entries[i];
+      break;
+    }
+  }
+
+  /* If component ID not found in bucket, */
+  if (!entry) {
+    /* Grow the bucket if needed */
+    if (bucket->count >= bucket->cap) {
+      if (bucket->cap == 0u) {
+        bucket->cap = 32u;
+      }
+      bucket->cap *= 2u;
+      bucket->entries
+        = realloc(bucket->entries, bucket->cap * sizeof(struct sig_by_entity_entry));
+    }
+    entry = &bucket->entries[bucket->count++];
+  }
+
+  entry->id = id;
+  append_entity_to_list(&entry->entities, entity);
+
+  return entry;
+}
+
+
+static struct component_by_id_entry *get_component_by_id(const cecs_component_t id)
 {
   size_t i_bucket = (size_t)id % N_COMPONENT_BY_ID_BUCKETS;
   struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
 
   for (size_t i = 0; i < bucket->count; ++i) {
     if (bucket->entries[i].id == id) {
-      *data = bucket->entries[i].data;
+      return &bucket->entries[i];
     }
   }
 
-  return 0u;
+  return NULL;
 }
 
 
@@ -282,6 +324,10 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
 
   for (cecs_component_t id = 0; id < CECS_N_COMPONENTS; ++id) {
     if (CECS_HAS_COMPONENT(&sig, id)) {
+      struct component_by_id_entry *entry = get_component_by_id(id);
+      for (size_t i = 0; i < entry->entities.count; ++i) {
+        put_entity_in_set(&it->set, entry->entities.entities[i]);
+      }
     }
   }
 
@@ -308,6 +354,12 @@ cecs_entity_t _cecs_create(cecs_component_t n, ...)
   cecs_entity_t entity = g_next_entity++;
 
   set_sig_by_entity(entity, &sig);
+
+  for (cecs_component_t id = 0; id < CECS_N_COMPONENTS; ++id) {
+    if (CECS_HAS_COMPONENT(&sig, id)) {
+      add_entity_to_component(id, entity);
+    }
+  }
 
   return entity;
 }
