@@ -56,8 +56,11 @@ void move_system()
     printf("[position, velocity, health] %llu\n", entity);
 
     printf("Position: %f,%f     velocity: %f,%f,    health: %u\n", pos->x, pos->y, vel->x, vel->y, health->hp);
+    
+    /* The "move" system updates position based on velocity. */
     pos->x += vel->x;
     pos->y += vel->y;
+    /* Additionally we mess with health for no good reason */
     health->hp -= 1u;
   }
 }
