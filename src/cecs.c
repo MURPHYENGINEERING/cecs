@@ -450,7 +450,6 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
 static void remove_entity_from_component(const cecs_component_t id, const cecs_entity_t entity)
 {
   struct component_by_id_entry *entry = NULL;
-  struct entity_list *list            = NULL;
 
   const size_t i_bucket = (size_t)(id % N_SIG_BY_ENTITY_BUCKETS);
 
@@ -664,12 +663,12 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 
   sig_remove(sig, &sig_to_remove);
 
-  add_entity_to_archetype(entity, get_archetype_by_sig(sig));
+  add_entity_to_archetype(entity, get_or_add_archetype_by_sig(sig));
   set_sig_by_entity(entity, sig);
 
   for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     if (CECS_HAS_COMPONENT(&sig_to_remove, i)) {
-      //remove_entity_from_component(i, entity);
+      remove_entity_from_component(i, entity);
     }
   }
 }

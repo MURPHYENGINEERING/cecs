@@ -69,6 +69,7 @@ void move_system()
 int main()
 {
   printf("Hello, world!\n");
+  getc(stdin);
 
   /* In addition to declaring the components, they must be registered in some
   setup function. This adds entries to the component table so they can be
@@ -83,10 +84,10 @@ int main()
   health_t health = { .hp = 100 };
 
   /* Create an entity implementing a set of compnents */
-  cecs_entity_t entity = cecs_create(health_t, position_t);
+  cecs_entity_t entity1 = cecs_create(health_t, position_t);
   
   /* Create an entity and add another component to it */
-  entity = cecs_create(velocity_t, position_t);
+  cecs_entity_t entity = cecs_create(velocity_t, position_t);
   cecs_add(entity, health_t);
 
   /* Populate component data for the entity with the dummy data from above */
@@ -97,13 +98,15 @@ int main()
   /* Try adding and removing components to and from the entity after creation */
   entity = cecs_create(velocity_t);
   cecs_add(entity, position_t);
-  //cecs_remove(entity, position_t);
+  cecs_remove(entity, position_t);
   cecs_add(entity, position_t);
   cecs_add(entity, health_t);
 
   cecs_set(entity, position_t, &position);
   cecs_set(entity, velocity_t, &velocity);
   cecs_set(entity, health_t, &health);
+
+  cecs_remove(entity1, position_t);
 
 
   /* Iterate the "move" system, which updates position based on velocity. */
