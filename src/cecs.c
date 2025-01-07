@@ -338,18 +338,6 @@ static void append_entity_to_list(struct entity_list *list, const cecs_entity_t 
 }
 
 
-static void move_entity_in_list(struct entity_list *list, const size_t src, const size_t dst)
-{
-  list->entities[dst] = list->entities[src];
-}
-
-
-static void move_component_data(void *data, const size_t size, const size_t src, const size_t dst)
-{
-  memcpy((uint8_t *)data + (size * dst), (uint8_t *)data + (size * src), size);
-}
-
-
 static struct component_by_id_entry *add_entity_to_component(const cecs_component_t id, const cecs_entity_t entity)
 {
   struct component_by_id_entry *entry = NULL;
