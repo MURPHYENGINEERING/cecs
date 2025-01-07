@@ -121,9 +121,6 @@ typedef struct {
 } cecs_sig_t;
 
 
-/** Maximum number of combinations of components that can be represented */
-#define CECS_N_ARCHETYPES 8192u
-
 struct cecs_entity_set_bucket {
   size_t count;
   size_t cap;

@@ -30,6 +30,22 @@ struct sig_by_entity_bucket {
 static struct sig_by_entity_bucket sigs_by_entity[N_SIG_BY_ENTITY_BUCKETS] = { 0u };
 
 
+struct component_by_id_entry {
+  cecs_component_t id;
+  size_t size;
+  void *data;
+};
+
+struct component_by_id_bucket {
+  size_t count;
+  size_t cap;
+  struct component_by_id_entry *entries;
+};
+
+#define N_COMPONENT_BY_ID_BUCKETS ((size_t)4096u)
+static struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
+
+
 cecs_entity_t cecs_iter_next(cecs_iter_t *it)
 {
   /* Check if we're at the end of the bucket before inspecting the current bucket */
@@ -89,7 +105,7 @@ static bool entity_set_put(struct cecs_entity_set *set, const cecs_entity_t enti
 
 static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
 {
-  size_t i_bucket                 = (size_t)entity % N_SIG_BY_ENTITY_BUCKETS;
+  size_t i_bucket = (size_t)entity % N_SIG_BY_ENTITY_BUCKETS;
   struct sig_by_entity_bucket *bucket = &sigs_by_entity[i_bucket];
 
   /* If entity already exists in bucket, just overwrite its value */
@@ -146,6 +162,54 @@ static bool sigs_are_equal(const cecs_sig_t *lhs, const cecs_sig_t *rhs)
 }
 
 
+static void set_component_by_id(const cecs_component_t id, const size_t size, void *data)
+{
+  size_t i_bucket                       = (size_t)id % N_SIG_BY_ENTITY_BUCKETS;
+  struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
+
+  /* If entity already exists in bucket, just overwrite its value */
+  for (size_t i = 0; i < bucket->count; ++i) {
+    struct component_by_id_entry *entry = &bucket->entries[i];
+    if (entry->id == id) {
+      entry->size = size;
+      return;
+    }
+  }
+
+  /* Grow the bucket if needed */
+  if (bucket->count >= bucket->cap) {
+    if (bucket->cap == 0) {
+      bucket->cap = 32u;
+    }
+    bucket->cap *= 2u;
+    bucket->entries
+      = realloc(bucket->entries, bucket->cap * sizeof(struct sig_by_entity_entry));
+  }
+
+  /* Entity wasn't found in bucket; add a new entry to the bucket bucket */
+  struct component_by_id_entry *entry = &bucket->entries[bucket->count++];
+
+  entry->id   = id;
+  entry->size = size;
+  entry->data = data;
+}
+
+
+static size_t get_component_by_id(const cecs_component_t id, void **data)
+{
+  size_t i_bucket = (size_t)id % N_COMPONENT_BY_ID_BUCKETS;
+  struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
+
+  for (size_t i = 0; i < bucket->count; ++i) {
+    if (bucket->entries[i].id == id) {
+      *data = bucket->entries[i].data;
+    }
+  }
+
+  return 0u;
+}
+
+
 static void sig_union(cecs_sig_t *target, const cecs_sig_t *with)
 {
   for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
@@ -198,8 +262,8 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
      We can create an array of stride __cecs_xxx_size and create a map from
      entity to pointer into that array.
 
-     We then have a free bucket for when components are removed from entities, we
-     add that entity's component pointer to the free bucket.
+     We then have a free bucket for when components are removed from entities,
+     we add that entity's component pointer to the free bucket.
 
      We can now get a component for an entity without a query.
 
