@@ -11,7 +11,7 @@ typedef struct {
 
 
 typedef struct {
-  uint16_t hp;
+  uint32_t hp;
 } health_t;
 
 
@@ -49,10 +49,10 @@ void move_system()
 
     printf("[position, velocity, health] %llu\n", entity);
 
-    (void)health;
-    printf("Position: %f,%f     velocity: %f,%f\n", pos->x, pos->y, vel->x, vel->y);
+    printf("Position: %f,%f     velocity: %f,%f,    health: %u\n", pos->x, pos->y, vel->x, vel->y, health->hp);
     pos->x += vel->x;
     pos->y += vel->y;
+    health->hp -= 1u;
   }
 }
 
@@ -65,8 +65,9 @@ int main()
   CECS_COMPONENT(velocity_t);
   CECS_COMPONENT(health_t);
 
-  position_t position = { .x = 0.25f, .y = 0.5f };
-  velocity_t velocity = { .x = 0.5f, .y = 0.75f };
+  position_t position = { .x = 0.0f, .y = 0.0f };
+  velocity_t velocity = { .x = 1.0f, .y = 1.0f };
+  health_t health = { .hp = 100 };
 
   cecs_entity_t entity = cecs_create(health_t, position_t);
   
@@ -75,6 +76,7 @@ int main()
 
   cecs_set(entity, position_t, &position);
   cecs_set(entity, velocity_t, &velocity);
+  cecs_set(entity, health_t, &health);
 
   entity = cecs_create(velocity_t);
   cecs_add(entity, position_t);
@@ -85,10 +87,10 @@ int main()
 
   cecs_set(entity, position_t, &position);
   cecs_set(entity, velocity_t, &velocity);
+  cecs_set(entity, health_t, &health);
 
-  (void)entity;
 
-  for (size_t i = 0; i < 2; ++i) {
+  for (size_t i = 0; i < 4; ++i) {
     move_system();
   }
 

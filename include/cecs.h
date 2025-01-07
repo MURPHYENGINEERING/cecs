@@ -124,17 +124,21 @@ typedef struct {
 } cecs_sig_t;
 
 
+/** List of entities in a bucket in the entity set */
 struct cecs_entity_set_bucket {
   size_t count;
   size_t cap;
   cecs_entity_t *entities;
 };
 
+/** Number of buckets in an entity set */
 #define N_ENTITY_SET_BUCKETS ((size_t)4096u)
+/** Set of unique entity IDs */
 struct cecs_entity_set {
   struct cecs_entity_set_bucket buckets[N_ENTITY_SET_BUCKETS];
 };
 
+/** Iterator over a set of entities */
 typedef struct {
   struct cecs_entity_set set;
   size_t i_bucket;
@@ -165,6 +169,7 @@ void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...);
 /** Remove the given components from the specified entity */
 void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...);
 
+/** Set the given component data for the specified entity */
 bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data);
 
 
