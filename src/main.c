@@ -31,6 +31,16 @@ void move_system()
     printf("[velocity] %llu\n", entity);
   }
 
+  cecs_query(&it, position_t);
+  while ((entity = cecs_iter_next(&it))) {
+    printf("[position] %llu\n", entity);
+  }
+
+  cecs_query(&it, position_t, velocity_t);
+  while ((entity = cecs_iter_next(&it))) {
+    printf("[position, velocity] %llu\n", entity);
+  }
+  
   cecs_query(&it, velocity_t, position_t, health_t);
   while  ((entity = cecs_iter_next(&it))) {
     position_t *pos = cecs_get(entity, position_t);
@@ -45,16 +55,6 @@ void move_system()
     //pos->x += vel->x;
     //pos->y += vel->y;
   }
-
-  cecs_query(&it, position_t);
-  while ((entity = cecs_iter_next(&it))) {
-    printf("[position] %llu\n", entity);
-  }
-
-  cecs_query(&it, position_t, velocity_t);
-  while ((entity = cecs_iter_next(&it))) {
-    printf("[position, velocity] %llu\n", entity);
-  }
 }
 
 
@@ -66,9 +66,9 @@ int main()
   CECS_COMPONENT(velocity_t);
   CECS_COMPONENT(health_t);
 
-  cecs_entity_t entity = cecs_create(health_t, velocity_t);
+  cecs_entity_t entity = cecs_create(health_t, position_t);
   
-  entity = cecs_create(health_t, position_t);
+  entity = cecs_create(velocity_t, position_t);
   //cecs_add(entity, position_t);
   //cecs_remove(entity, velocity_t);
 

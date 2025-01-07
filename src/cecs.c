@@ -31,11 +31,10 @@ static struct sig_by_entity_bucket sigs_by_entity[N_SIG_BY_ENTITY_BUCKETS] = { 0
 
 
 struct entity_list {
-  cecs_entity_t *entities;
   size_t count;
   size_t cap;
+  cecs_entity_t *entities;
 };
-
 
 struct component_by_id_entry {
   cecs_component_t id;
@@ -79,13 +78,13 @@ struct archetype_list {
   struct archetype **elements;
 };
 
-#define N_ARCHETYPE_BY_SIG_BUCKETS ((size_t)4096u)
+#define N_ARCHETYPE_BY_SIG_BUCKETS ((size_t)256u)
 /** Map from signature to the archetype it represents */
 static struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKETS]
   = { 0u };
 
 
-#define N_COMPONENT_BY_ID_BUCKETS ((size_t)4096u)
+#define N_COMPONENT_BY_ID_BUCKETS ((size_t)256u)
 static struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
 
 
@@ -127,6 +126,7 @@ static void append_archetype_to_list(struct archetype *archetype, struct archety
 }
 
 
+/** The caller is responsible for freeing the archetypes list */
 static struct archetype_list *get_archetypes_by_sig(const cecs_sig_t *sig)
 {
   struct archetype_list *list = malloc(sizeof(struct archetype_list));
