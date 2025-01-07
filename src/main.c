@@ -42,6 +42,11 @@ void move_system()
     //pos->x += vel->x;
     //pos->y += vel->y;
   }
+
+  cecs_query(&it, position_t);
+  while ((entity = cecs_iter_next(&it))) {
+    printf("[position] %llu\n", entity);
+  }
 }
 
 
@@ -61,7 +66,6 @@ int main()
   //cecs_add(entity, position_t);
   //cecs_remove(entity, velocity_t);
 
-  /* 2 */
   entity = cecs_create(health_t, velocity_t, position_t);
   //cecs_remove(entity, position_t);
 
