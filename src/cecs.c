@@ -326,7 +326,9 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
     if (CECS_HAS_COMPONENT(&sig, id)) {
       struct component_by_id_entry *entry = get_component_by_id(id);
       for (size_t i = 0; i < entry->entities.count; ++i) {
-        put_entity_in_set(&it->set, entry->entities.entities[i]);
+        if (put_entity_in_set(&it->set, entry->entities.entities[i])) {
+          ++n_entities;
+        }
       }
     }
   }
@@ -376,6 +378,12 @@ void _cecs_add(cecs_entity_t entity, cecs_component_t n, ...)
   va_end(components);
 
   sig_union(sig, &sig_to_add);
+
+  for (cecs_component_t id = 0; id < CECS_N_COMPONENTS; ++id) {
+    if (CECS_HAS_COMPONENT(sig, id)) {
+      add_entity_to_component(id, entity);
+    }
+  }
 }
 
 
