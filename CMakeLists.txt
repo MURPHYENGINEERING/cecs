@@ -23,7 +23,7 @@ file(GLOB_RECURSE sources      src/*.c src/*.h)
 add_executable(${ProjectName} ${sources} ${data})
 
 # just for example add some compiler flags
-target_compile_options(${ProjectName} PUBLIC -std=c11 -Wextra -Wall -Werror -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wswitch-default -Wswitch-enum -Wconversion)
+target_compile_options(${ProjectName} PUBLIC -std=c11 -Wextra -Wall -Werror -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wswitch-default -Wswitch-enum -Wconversion -Wno-unused)
 
 # this lets me include files relative to the root source directory with a <> pair
 target_include_directories(${ProjectName} PUBLIC include)
