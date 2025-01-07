@@ -64,16 +64,17 @@ extern cecs_component_t CECS_NEXT_COMPONENT_ID;
    &= ~CECS_COMPONENT_TO_BITS(component))
 
 
-#define CECS_COMPONENT_DECL(type)                           \
-  static const size_t CECS_SIZE_OF(type)      = sizeof(type); \
+#define CECS_COMPONENT_DECL(type)                          \
+  static const size_t CECS_SIZE_OF(type)   = sizeof(type); \
   static cecs_component_t CECS_ID_OF(type) = (cecs_component_t)0u
 
-#define CECS_COMPONENT(type) \
-  (CECS_ID_OF(type) = (cecs_component_t)(CECS_NEXT_COMPONENT_ID++))
+#define CECS_COMPONENT(type)                                       \
+  CECS_ID_OF(type) = (cecs_component_t)(CECS_NEXT_COMPONENT_ID++); \
+  cecs_register_component(CECS_ID_OF(type), CECS_SIZE_OF(type))
 
 
 #define FE_0(WHAT)
-#define FE_1(WHAT, X) WHAT(X) 
+#define FE_1(WHAT, X)      WHAT(X)
 #define FE_2(WHAT, X, ...) WHAT(X), FE_1(WHAT, __VA_ARGS__)
 #define FE_3(WHAT, X, ...) WHAT(X), FE_2(WHAT, __VA_ARGS__)
 #define FE_4(WHAT, X, ...) WHAT(X), FE_3(WHAT, __VA_ARGS__)
@@ -83,20 +84,19 @@ extern cecs_component_t CECS_NEXT_COMPONENT_ID;
 #define FE_8(WHAT, X, ...) WHAT(X), FE_7(WHAT, __VA_ARGS__)
 #define FE_9(WHAT, X, ...) WHAT(X), FE_8(WHAT, __VA_ARGS__)
 
-#define GET_MACRO(_0,_1,_2,_3,_4,_5,_6,_7,_8,_9,NAME,...) NAME 
-#define FOR_EACH(action,...) \
-  GET_MACRO(_0,__VA_ARGS__,FE_9,FE_8,FE_7,FE_6,FE_5,FE_4,FE_3,FE_2,FE_1,FE_0)(action,__VA_ARGS__)
+#define GET_MACRO(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, NAME, ...) NAME
+#define FOR_EACH(action, ...) \
+  GET_MACRO(_0, __VA_ARGS__, FE_9, FE_8, FE_7, FE_6, FE_5, FE_4, FE_3, FE_2, FE_1, FE_0)(action, __VA_ARGS__)
 
-#define FOR_EACH_NARG(...) FOR_EACH_NARG_(__VA_ARGS__, FOR_EACH_RSEQ_N())
-#define FOR_EACH_NARG_(...) FOR_EACH_ARG_N(__VA_ARGS__) 
-#define FOR_EACH_ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, _9, N, ...) N 
-#define FOR_EACH_RSEQ_N() 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+#define FOR_EACH_NARG(...)                                         FOR_EACH_NARG_(__VA_ARGS__, FOR_EACH_RSEQ_N())
+#define FOR_EACH_NARG_(...)                                        FOR_EACH_ARG_N(__VA_ARGS__)
+#define FOR_EACH_ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, _9, N, ...) N
+#define FOR_EACH_RSEQ_N()                                          9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
 
 /** Get the component of the specified type for the given entity, drawing from
-  * the given query result */
-#define cecs_get(entity, type) \
-  (type *)_cecs_get(entity, CECS_ID_OF(type), CECS_SIZE_OF(type))
+ * the given query result */
+#define cecs_get(entity, type) (type *)_cecs_get(entity, CECS_ID_OF(type))
 
 /** Create a new entity with the given components */
 #define cecs_create(...) \
@@ -139,26 +139,28 @@ typedef struct {
 } cecs_iter_t;
 
 
+/** Register the given component ID with the specified size */
+void cecs_register_component(const cecs_component_t id, const size_t size);
 
 /** Return an iterator over the entities representing the archetype specified in
  * the varargs parameter */
-cecs_entity_t _cecs_query(cecs_iter_t *it, cecs_component_t n, ...);
+cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...);
 
 /** Returns the next entity in the iterator, or NULL if the end is reached */
 cecs_entity_t cecs_iter_next(cecs_iter_t *it);
 
 /** Get a pointer to the component implemented by the specified entity, drawing
  * from the given entity iterator over an archetype */
-void *_cecs_get(cecs_entity_t entity, cecs_component_t id, size_t size);
+void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id);
 
 /** Create an entity with the given components */
-cecs_entity_t _cecs_create(cecs_component_t n, ...);
+cecs_entity_t _cecs_create(const cecs_component_t n, ...);
 
 /** Add the given components to the specified entity */
-void _cecs_add(cecs_entity_t entity, cecs_component_t n, ...);
+void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...);
 
 /** Remove the given components from the specified entity */
-void _cecs_remove(cecs_entity_t entity, cecs_component_t n, ...);
+void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...);
 
 
 #endif
