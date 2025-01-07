@@ -112,6 +112,36 @@ static bool sig_is_in(const cecs_sig_t *look_for, const cecs_sig_t *in)
 }
 
 
+static void sig_union(cecs_sig_t *target, const cecs_sig_t *with)
+{
+  for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+    target->components[i] |= with->components[i];
+  }
+}
+
+
+static void sig_remove(cecs_sig_t *target, const cecs_sig_t *to_remove)
+{
+  for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+    target->components[i] &= ~to_remove->components[i];
+  }
+}
+
+
+static cecs_sig_t components_to_sig(const cecs_component_t n, va_list components)
+{
+  cecs_sig_t sig;
+  memset(&sig, 0u, sizeof(sig));
+
+  for (size_t i = 0; i < n; ++i) {
+    cecs_component_t id = va_arg(components, cecs_component_t);
+    CECS_ADD_COMPONENT(&sig, id);
+  }
+
+  return sig;
+}
+
+
 static void append_archetype_to_list(struct archetype *archetype, struct archetype_list *list)
 {
   if (list->count >= list->cap) {
@@ -388,36 +418,6 @@ static struct component_by_id_entry *get_component_by_id(const cecs_component_t 
   }
 
   return NULL;
-}
-
-
-static void sig_union(cecs_sig_t *target, const cecs_sig_t *with)
-{
-  for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
-    target->components[i] |= with->components[i];
-  }
-}
-
-
-static void sig_remove(cecs_sig_t *target, const cecs_sig_t *to_remove)
-{
-  for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
-    target->components[i] &= ~to_remove->components[i];
-  }
-}
-
-
-static cecs_sig_t components_to_sig(const cecs_component_t n, va_list components)
-{
-  cecs_sig_t sig;
-  memset(&sig, 0u, sizeof(sig));
-
-  for (size_t i = 0; i < n; ++i) {
-    cecs_component_t id = va_arg(components, cecs_component_t);
-    CECS_ADD_COMPONENT(&sig, id);
-  }
-
-  return sig;
 }
 
 
