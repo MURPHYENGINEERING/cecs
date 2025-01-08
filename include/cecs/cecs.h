@@ -2,11 +2,7 @@
 #define __CECS_H__
 
 #include <stdint.h>
-
-
-typedef unsigned char bool;
-#define false ((bool)0u)
-#define true  ((bool)1u)
+#include <stdbool.h>
 
 
 /** An ID tracks an element of data in the CECS system */
