@@ -4,9 +4,11 @@
 
 #include <cecs/cecs.h>
 
+#include <cglm/cglm.h>
+
 
 typedef struct {
-  float x, y;
+  vec2 xy;
 } has_position_t, has_velocity_t;
 
 
@@ -70,11 +72,11 @@ void move_system()
 
     printf("[position, velocity, health] %llu\n", entity);
 
-    printf("Position: %f,%f     velocity: %f,%f,    health: %u\n", pos->x, pos->y, vel->x, vel->y, health->hp);
+    printf("Position: %f,%f     velocity: %f,%f,    health: %u\n", pos->xy[0], pos->xy[1], vel->xy[0], vel->xy[1], health->hp);
     
     /* The "move" system updates position based on velocity. */
-    pos->x += vel->x;
-    pos->y += vel->y;
+    pos->xy[0] += vel->xy[0];
+    pos->xy[1] += vel->xy[1];
   }
 }
 
@@ -83,7 +85,7 @@ int main()
 {
   printf("Hello, world!\n");
   printf("================================================================================\n");
-  getc(stdin);
+  //getc(stdin);
 
   /* In addition to declaring the components, they must be registered in some
   setup function. This adds entries to the component table so they can be
@@ -94,8 +96,8 @@ int main()
   CECS_COMPONENT(is_alive_t);
 
   /* Create dummy data to populate entity's components with */
-  has_position_t position = { .x = 0.0f, .y = 0.0f };
-  has_velocity_t velocity = { .x = 1.0f, .y = 1.0f };
+  has_position_t position = { .xy = {0.0f, 0.0f} };
+  has_velocity_t velocity = { .xy = {1.0f, 0.5f} };
   has_health_t health = { .hp = 30 };
 
   /* Create an entity implementing a set of compnents */
