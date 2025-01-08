@@ -84,13 +84,14 @@ int main()
 
   /* Create an entity implementing a set of compnents */
   cecs_entity_t entity1 = cecs_create(health_t, position_t);
+  cecs_zero(entity1, position_t, health_t);
   
   /* Create an entity and add another component to it */
   cecs_entity_t entity = cecs_create(velocity_t, position_t);
   cecs_add(entity, health_t);
 
   /* Populate component data for the entity with the dummy data from above */
-  cecs_set(entity, position_t, &position);
+  cecs_zero(entity, position_t);
   cecs_set(entity, velocity_t, &velocity);
   cecs_set(entity, health_t, &health);
 
@@ -101,7 +102,7 @@ int main()
   cecs_add(entity, position_t);
   cecs_add(entity, health_t);
 
-  cecs_set(entity, position_t, &position);
+  cecs_zero(entity, position_t);
   cecs_set(entity, velocity_t, &velocity);
   cecs_set(entity, health_t, &health);
 
