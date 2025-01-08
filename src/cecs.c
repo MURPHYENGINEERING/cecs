@@ -705,7 +705,8 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
   va_list components;
 
   va_start(components, n);
-  struct component_by_id_entry *entry = get_component_by_id(va_arg(components, cecs_component_t));
+  struct component_by_id_entry *entry
+    = get_component_by_id(va_arg(components, cecs_component_t));
 
   for (size_t i = 0; i < entry->entities.count; ++i) {
     if (entry->entities.entities[i] == entity) {
