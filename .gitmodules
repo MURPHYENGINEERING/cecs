@@ -4,6 +4,3 @@
 [submodule "lib/SDL"]
 	path = lib/SDL
 	url = https://github.com/libsdl-org/SDL.git
-[submodule "lib/cglm"]
-	path = lib/cglm
-	url = https://github.com/recp/cglm.git
