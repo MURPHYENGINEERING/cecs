@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <cecs.h>
+#include <cecs/cecs.h>
 
 
 /** The next component ID to be assigned on registration */

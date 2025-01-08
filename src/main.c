@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <cecs.h>
+#include <cecs/cecs.h>
 
 
 typedef struct {
