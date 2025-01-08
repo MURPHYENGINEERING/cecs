@@ -104,14 +104,21 @@ static struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS]
 
 
 /** Grow the given list to the minimum size if empty, or double its size */
-#define GROW_LIST_IF_NEEDED(list, min_size, entries, type)                  \
-  if ((list)->count >= (list)->cap) {                                       \
-    if ((list)->cap == 0u) {                                                \
-      (list)->cap = (min_size);                                             \
-    } else {                                                                \
-      (list)->cap *= 2u;                                                    \
-    }                                                                       \
-    (list)->entries = realloc((list)->entries, (list)->cap * sizeof(type)); \
+#define GROW_LIST_IF_NEEDED(list, min_size, entries, type)                           \
+  if ((list)->count >= (list)->cap) {                                                \
+    if ((list)->cap == 0u) {                                                         \
+      (list)->cap     = (min_size);                                                  \
+      (list)->entries = realloc((list)->entries, (list)->cap * sizeof(type));        \
+      memset((uint8_t *)(list)->entries, 0u, (list)->cap * sizeof(type));            \
+    } else {                                                                         \
+      (list)->entries = realloc((list)->entries, ((list)->cap * 2u) * sizeof(type)); \
+      memset(                                                                        \
+        ((uint8_t *)(list)->entries) + (list)->cap * sizeof(type),                   \
+        0u,                                                                          \
+        (list)->cap * sizeof(type)                                                   \
+      );                                                                             \
+      (list)->cap *= 2u;                                                             \
+    }                                                                                \
   }
 
 
@@ -405,12 +412,36 @@ static struct component_by_id_entry *register_component(const cecs_component_t i
   if (entry->entities.count >= entry->entities.cap) {
     if (entry->entities.cap == 0u) {
       entry->entities.cap = 64u;
+
+      /* Reallocate and zero the entities list for this component */
+      entry->entities.entities
+        = realloc(entry->entities.entities, entry->entities.cap * sizeof(cecs_entity_t));
+      memset((uint8_t *)entry->entities.entities, 0u, entry->entities.cap * sizeof(cecs_entity_t));
+
+      /* Reallocate and zero the entity data for this component */
+      entry->data = realloc(entry->data, entry->entities.cap * size);
+      memset((uint8_t *)entry->data, 0u, entry->entities.cap * size);
+
     } else {
+      /* Reallocate and zero the entities list for this component */
+      entry->entities.entities
+        = realloc(entry->entities.entities, entry->entities.cap * 2u * sizeof(cecs_entity_t));
+      memset(
+        ((uint8_t *)entry->entities.entities) + entry->entities.cap * sizeof(cecs_entity_t),
+        0u,
+        entry->entities.cap * sizeof(cecs_entity_t)
+      );
+
+      /* Reallocate and zero the entity data for this component */
+      entry->data = realloc(entry->data, entry->entities.cap * size);
+      memset(
+        ((uint8_t *)entry->data) + entry->entities.cap * size,
+        0u,
+        entry->entities.cap * size
+      );
+
       entry->entities.cap *= 2u;
     }
-    entry->data = realloc(entry->data, entry->entities.cap * size);
-    entry->entities.entities
-      = realloc(entry->entities.entities, entry->entities.cap * sizeof(cecs_entity_t));
   }
 
   return entry;
