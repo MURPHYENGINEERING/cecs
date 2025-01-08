@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <cecs.h>
+#include <cecs/cecs.h>
 
 
 typedef struct {
@@ -83,6 +83,7 @@ int main()
 {
   printf("Hello, world!\n");
   printf("================================================================================\n");
+  getc(stdin);
 
   /* In addition to declaring the components, they must be registered in some
   setup function. This adds entries to the component table so they can be
