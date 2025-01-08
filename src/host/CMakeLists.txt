@@ -3,7 +3,7 @@ add_executable(lmda-host
   ${log_config_file_output}
 )
 
-target_compile_options(lmda-host PUBLIC -std=c11 -Wextra -Wall -Werror -Wundef -Wshadow -Wpointer-arith -Wswitch-enum -Wconversion -Wno-unused)
+target_compile_options(lmda-host PUBLIC -std=c11 -Wextra -Wall -Werror -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wswitch-default -Wswitch-enum -Wconversion -Wno-unused)
 
 
 target_include_directories(lmda-host PUBLIC ${LMDA_INCLUDE_DIR})
