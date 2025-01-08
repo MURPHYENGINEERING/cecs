@@ -702,19 +702,23 @@ bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data
 /** Zero out the component data for the given entity, component pair */
 bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
 {
+  bool changed = false;
+
   va_list components;
 
   va_start(components, n);
-  struct component_by_id_entry *entry
-    = get_component_by_id(va_arg(components, cecs_component_t));
+  for (size_t i = 0; i < n; ++i) {
+    struct component_by_id_entry *entry
+      = get_component_by_id(va_arg(components, cecs_component_t));
 
-  for (size_t i = 0; i < entry->entities.count; ++i) {
-    if (entry->entities.entities[i] == entity) {
-      memset(((uint8_t *)entry->data) + (i * entry->size), 0u, entry->size);
-      return true;
+    for (size_t j = 0; j < entry->entities.count; ++j) {
+      if (entry->entities.entities[j] == entity) {
+        memset(((uint8_t *)entry->data) + (j * entry->size), 0u, entry->size);
+        changed = true;
+      }
     }
   }
   va_end(components);
 
-  return false;
+  return changed;
 }
