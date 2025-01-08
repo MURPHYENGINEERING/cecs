@@ -1,6 +1,0 @@
-[submodule "lib/cecs"]
-	path = lib/cecs
-	url = https://github.com/MURPHYENGINEERING/cecs.git
-[submodule "lib/SDL"]
-	path = lib/SDL
-	url = https://github.com/libsdl-org/SDL.git

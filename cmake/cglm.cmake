@@ -1,1 +1,0 @@
-add_subdirectory(${LMDA_VENDOR_DIR}/cglm/ EXCLUDE_FROM_ALL)
