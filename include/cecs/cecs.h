@@ -160,7 +160,7 @@ void cecs_register_component(const cecs_component_t id, const size_t size);
  * the varargs parameter */
 cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...);
 
-/** Returns the next entity in the iterator, or NULL if the end is reached */
+/** Returns the next entity in the iterator, or CECS_ENTITY_INVALID if the end is reached */
 cecs_entity_t cecs_iter_next(cecs_iter_t *it);
 
 /** Get a pointer to the component implemented by the specified entity, drawing
