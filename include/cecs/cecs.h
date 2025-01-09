@@ -121,7 +121,7 @@ struct cecs_entity_set {
 
 /** Iterator over a set of entities */
 typedef struct {
-  struct cecs_entity_set set;
+  struct cecs_entity_set *set;
   size_t i_bucket;
   size_t i_entity;
 } cecs_iter_t;

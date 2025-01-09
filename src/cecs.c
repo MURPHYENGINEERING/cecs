@@ -131,6 +131,9 @@ struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKETS]
 struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
 
 
+struct cecs_entity_set query_result_cache;
+
+
 /** Grow the given list to the minimum size if empty, or double its size */
 #define GROW_LIST_IF_NEEDED(list, min_size, entries, type)                           \
   if ((list)->count >= (list)->cap) {                                                \
@@ -319,10 +322,10 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
     return CECS_ENTITY_INVALID;
   }
 
-  if (it->i_entity >= it->set.buckets[it->i_bucket].count) {
+  if (it->i_entity >= it->set->buckets[it->i_bucket].count) {
     /* Skip empty buckets until we reach a non-empty one or the end of the set */
     while ((++it->i_bucket < N_ENTITY_SET_BUCKETS)
-           && (it->set.buckets[it->i_bucket].count == 0)) {
+           && (it->set->buckets[it->i_bucket].count == 0)) {
     }
 
     /* Restart at the beginning of the new bucket */
@@ -336,7 +339,7 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
   }
 
   /* Iterate the bucket */
-  return it->set.buckets[it->i_bucket].entities[it->i_entity++];
+  return it->set->buckets[it->i_bucket].entities[it->i_entity++];
 }
 
 
@@ -354,7 +357,7 @@ static bool put_entity_in_set(struct cecs_entity_set *set, const cecs_entity_t e
     }
   }
 
-  GROW_LIST_IF_NEEDED(bucket, 32u, entities, cecs_entity_t);
+  GROW_LIST_IF_NEEDED(bucket, 16384u, entities, cecs_entity_t);
 
   /* Add an entry to the end of the bucket and increase the count */
   bucket->entities[bucket->count++] = entity;
@@ -586,6 +589,16 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   cecs_entity_t n_entities = 0u;
 
   memset(it, 0u, sizeof(*it));
+  
+  /* Use a prebuilt set so we aren't allocating set lists on every query */
+  it->set = &query_result_cache;
+
+  /* Clear the previous results from the cached set */
+  for (size_t i = 0; i < N_ENTITY_SET_BUCKETS; ++i) {
+    struct cecs_entity_set_bucket *bucket = &it->set->buckets[i];
+    memset(bucket->entities, 0u, bucket->count * sizeof(cecs_entity_t));
+    bucket->count = 0u;
+  }
 
   va_start(components, n);
   cecs_sig_t sig = components_to_sig(n, components);
@@ -599,7 +612,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   for (size_t i_archetype = 0; i_archetype < archetypes->count; ++i_archetype) {
     struct archetype *archetype = archetypes->elements[i_archetype];
     for (size_t i = 0; i < archetype->count; ++i) {
-      if (put_entity_in_set(&it->set, archetype->entities[i])) {
+      if (put_entity_in_set(it->set, archetype->entities[i])) {
         ++n_entities;
       }
     }
