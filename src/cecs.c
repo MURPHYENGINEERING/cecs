@@ -12,7 +12,7 @@
 cecs_component_t CECS_NEXT_COMPONENT_ID = (cecs_component_t)0u;
 
 /** The next entity to be assigned on creation */
-static cecs_entity_t g_next_entity = CECS_ENTITY_INVALID + 1u;
+cecs_entity_t g_next_entity = CECS_ENTITY_INVALID + 1u;
 
 
 /** entity->signature pair */
@@ -32,7 +32,7 @@ struct sig_by_entity_bucket {
 /** Number of buckets in the entity->signature map */
 #define N_SIG_BY_ENTITY_BUCKETS ((size_t)4096u)
 /** Map from entity ID to the signature it implements */
-static struct sig_by_entity_bucket sigs_by_entity[N_SIG_BY_ENTITY_BUCKETS] = { 0u };
+struct sig_by_entity_bucket sigs_by_entity[N_SIG_BY_ENTITY_BUCKETS] = { 0u };
 
 
 /* List of entity IDs */
@@ -93,14 +93,14 @@ struct archetype_list {
 /** Number of buckets in the signature->archetype map */
 #define N_ARCHETYPE_BY_SIG_BUCKETS ((size_t)256u)
 /** Map from signature to the archetype it represents */
-static struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKETS]
+struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKETS]
   = { 0u };
 
 
 /** Number of buckets in the componet ID->data map */
 #define N_COMPONENT_BY_ID_BUCKETS ((size_t)256u)
 /** Map from component ID to component data and implementing entities list */
-static struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
+struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
 
 
 /** Grow the given list to the minimum size if empty, or double its size */
