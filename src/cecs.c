@@ -8,6 +8,34 @@
 #include <cecs/cecs.h>
 
 
+/** Convert a component ID to the LSB into the appropriate index into the
+ * signature bit field array. */
+#define CECS_COMPONENT_TO_LSB(component) \
+  ((component) % ((cecs_component_t)8u * sizeof(cecs_component_t)))
+
+/** Convert a component ID to the bit pattern representing it in the
+ * appropriate index into the signature bit field array. */
+#define CECS_COMPONENT_TO_BITS(component) \
+  ((cecs_component_t)1u << CECS_COMPONENT_TO_LSB(component))
+
+
+/** Returns whether the given signature contains the specified component ID. */
+#define CECS_HAS_COMPONENT(signature, component)               \
+  ((signature)->components[CECS_COMPONENT_TO_INDEX(component)] \
+   & CECS_COMPONENT_TO_BITS(component))
+
+/** Add the specified component ID to the given signature. */
+#define CECS_ADD_COMPONENT(signature, component)               \
+  ((signature)->components[CECS_COMPONENT_TO_INDEX(component)] \
+   |= CECS_COMPONENT_TO_BITS(component))
+
+/** Remove the specified component ID from the given signature. */
+#define CECS_REMOVE_COMPONENT(signature, component)            \
+  ((signature)->components[CECS_COMPONENT_TO_INDEX(component)] \
+   &= ~CECS_COMPONENT_TO_BITS(component))
+
+
+
 /** The next component ID to be assigned on registration */
 cecs_component_t CECS_NEXT_COMPONENT_ID = (cecs_component_t)0u;
 
@@ -191,15 +219,6 @@ static cecs_sig_t components_to_sig(const cecs_component_t n, va_list components
 }
 
 
-/** Append  the given archetype pointer to the archetype pointer list, growing
- * if needed */
-static void append_archetype_to_list(struct archetype *archetype, struct archetype_list *list)
-{
-  GROW_LIST_IF_NEEDED(list, 32u, elements, struct archetype *);
-
-  list->elements[list->count++] = archetype;
-}
-
 
 /** Get all the archetypes that contain the given signature.
  * The caller is responsible for freeing the returned list. */
@@ -213,7 +232,8 @@ static struct archetype_list *get_archetypes_by_sig(const cecs_sig_t *sig)
     for (size_t i_entry = 0; i_entry < bucket->count; ++i_entry) {
       struct archetype_by_sig_entry *entry = &bucket->entries[i_entry];
       if (sig_is_in(sig, &entry->sig)) {
-        append_archetype_to_list(&entry->archetype, list);
+        GROW_LIST_IF_NEEDED(list, 32u, elements, struct archetype *);
+        list->elements[list->count++] = &entry->archetype;
       }
     }
   }
@@ -230,7 +250,6 @@ static struct archetype *set_archetype_by_sig(const cecs_sig_t *sig, const struc
   for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     i_bucket ^= (size_t)(sig->components[i] % N_ARCHETYPE_BY_SIG_BUCKETS);
   }
-
   struct archetype_by_sig_bucket *bucket = &archetypes_by_sig[i_bucket];
 
   /* If entity already exists in bucket, just overwrite its value */
@@ -335,7 +354,7 @@ static bool put_entity_in_set(struct cecs_entity_set *set, const cecs_entity_t e
     }
   }
 
-  GROW_LIST_IF_NEEDED(bucket, 64u, entities, cecs_entity_t);
+  GROW_LIST_IF_NEEDED(bucket, 32u, entities, cecs_entity_t);
 
   /* Add an entry to the end of the bucket and increase the count */
   bucket->entities[bucket->count++] = entity;

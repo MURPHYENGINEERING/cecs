@@ -33,32 +33,6 @@ extern cecs_component_t CECS_NEXT_COMPONENT_ID;
 #define CECS_COMPONENT_TO_INDEX(component) \
   ((component) / ((cecs_component_t)8u * sizeof(cecs_component_t)))
 
-/** Convert a component ID to the LSB into the appropriate index into the
- * signature bit field array. */
-#define CECS_COMPONENT_TO_LSB(component) \
-  ((component) % ((cecs_component_t)8u * sizeof(cecs_component_t)))
-
-/** Convert a component ID to the bit pattern representing it in the
- * appropriate index into the signature bit field array. */
-#define CECS_COMPONENT_TO_BITS(component) \
-  ((cecs_component_t)1u << CECS_COMPONENT_TO_LSB(component))
-
-
-/** Returns whether the given signature contains the specified component ID. */
-#define CECS_HAS_COMPONENT(signature, component)               \
-  ((signature)->components[CECS_COMPONENT_TO_INDEX(component)] \
-   & CECS_COMPONENT_TO_BITS(component))
-
-/** Add the specified component ID to the given signature. */
-#define CECS_ADD_COMPONENT(signature, component)               \
-  ((signature)->components[CECS_COMPONENT_TO_INDEX(component)] \
-   |= CECS_COMPONENT_TO_BITS(component))
-
-/** Remove the specified component ID from the given signature. */
-#define CECS_REMOVE_COMPONENT(signature, component)            \
-  ((signature)->components[CECS_COMPONENT_TO_INDEX(component)] \
-   &= ~CECS_COMPONENT_TO_BITS(component))
-
 
 /** Declare that a component exists. This should be done at the header level. */
 #define CECS_COMPONENT_DECL(type)         \
@@ -139,7 +113,7 @@ struct cecs_entity_set_bucket {
 };
 
 /** Number of buckets in an entity set */
-#define N_ENTITY_SET_BUCKETS ((size_t)4096u)
+#define N_ENTITY_SET_BUCKETS ((size_t)8192u)
 /** Set of unique entity IDs */
 struct cecs_entity_set {
   struct cecs_entity_set_bucket buckets[N_ENTITY_SET_BUCKETS];
