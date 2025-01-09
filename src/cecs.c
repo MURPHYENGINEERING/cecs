@@ -37,7 +37,7 @@
 
 
 /** The next component ID to be assigned on registration */
-cecs_component_t CECS_NEXT_COMPONENT_ID = (cecs_component_t)0u;
+cecs_component_t CECS_NEXT_COMPONENT_ID = (cecs_component_t)1u;
 
 /** The next entity to be assigned on creation */
 cecs_entity_t g_next_entity = CECS_ENTITY_INVALID + 1u;
@@ -131,6 +131,12 @@ struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKETS]
 struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
 
 
+/** Number of buckets in the entity ID->index map */
+#define N_INDICES_BY_ENTITY_BUCKETS ((size_t)1024u)
+struct index_by_entity_bucket indices_by_entity[N_INDICES_BY_ENTITY_BUCKETS] = {0u};
+
+/** Cache the set used to return query result so we don't have to allocate
+  * buckets on every query */
 struct cecs_entity_set query_result_cache;
 
 
@@ -215,6 +221,7 @@ static cecs_sig_t components_to_sig(const cecs_component_t n, va_list components
 
   for (size_t i = 0; i < n; ++i) {
     cecs_component_t id = va_arg(components, cecs_component_t);
+    assert(id > 0 && "Component was not registered with CECS_COMPONENT()");
     CECS_ADD_COMPONENT(&sig, id);
   }
 
@@ -436,6 +443,8 @@ static struct component_by_id_entry *register_component(const cecs_component_t i
 /** Add a block of component data for the given entity */
 static void add_entity_to_component(const cecs_component_t id, const cecs_entity_t entity)
 {
+  assert(id > 0 && "Component was not registered with CECS_COMPONENT()");
+
   struct component_by_id_entry *entry = NULL;
 
   const size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
@@ -500,6 +509,8 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
 
 static void remove_entity_from_component(const cecs_component_t id, const cecs_entity_t entity)
 {
+  assert(id > 0 && "Component was not registered with CECS_COMPONENT()");
+
   struct component_by_id_entry *entry = NULL;
 
   const size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
@@ -540,6 +551,8 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
 /** Get the component data for the given component ID */
 static struct component_by_id_entry *get_component_by_id(const cecs_component_t id)
 {
+  assert(id > 0 && "Component was not registered with CECS_COMPONENT()");
+
   size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
   struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
 
