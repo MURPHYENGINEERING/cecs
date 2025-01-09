@@ -1,8 +1,8 @@
 #ifndef __CECS_H__
 #define __CECS_H__
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 
 /** An ID tracks an element of data in the CECS system */
@@ -60,10 +60,17 @@ extern cecs_component_t CECS_NEXT_COMPONENT_ID;
    &= ~CECS_COMPONENT_TO_BITS(component))
 
 
-#define CECS_COMPONENT_DECL(type)                          \
-  static const size_t CECS_SIZE_OF(type)   = sizeof(type); \
-  static cecs_component_t CECS_ID_OF(type) = (cecs_component_t)0u
+/** Declare that a component exists. This should be done at the header level. */
+#define CECS_COMPONENT_DECL(type)         \
+  extern const size_t CECS_SIZE_OF(type); \
+  extern cecs_component_t CECS_ID_OF(type)
 
+/** Define a component. This should be done once in a source file. */
+#define CECS_COMPONENT_DEF(type)                    \
+  const size_t CECS_SIZE_OF(type)   = sizeof(type); \
+  cecs_component_t CECS_ID_OF(type) = (cecs_component_t)0u
+
+/** Initialize a component. This should be done once at application startup. */
 #define CECS_COMPONENT(type)                                       \
   CECS_ID_OF(type) = (cecs_component_t)(CECS_NEXT_COMPONENT_ID++); \
   cecs_register_component(CECS_ID_OF(type), CECS_SIZE_OF(type))
