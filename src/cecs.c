@@ -63,9 +63,9 @@ struct archetype {
   /** Component signature implemented by this archetype */
   cecs_sig_t sig;
   /** Number of entities implementing this archetype */
-  size_t n_entities;
+  size_t count;
   /** Number of entities able to be stored in the entities array before resizing */
-  size_t cap_entities;
+  size_t cap;
   /** Array of entities implementing this archetype */
   cecs_entity_t *entities;
 };
@@ -461,7 +461,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
       );
 
       /* Reallocate and zero the entity data for this component */
-      entry->data = realloc(entry->data, entry->entities.cap * entry->size);
+      entry->data = realloc(entry->data, entry->entities.cap * 2u * entry->size);
       memset(
         ((uint8_t *)entry->data) + entry->entities.cap * entry->size,
         0u,
@@ -533,34 +533,25 @@ static struct component_by_id_entry *get_component_by_id(const cecs_component_t 
 static void add_entity_to_archetype(const cecs_entity_t entity, struct archetype *archetype)
 {
   /* Don't add duplicates */
-  for (size_t i = 0; i < archetype->n_entities; ++i) {
+  for (size_t i = 0; i < archetype->count; ++i) {
     if (archetype->entities[i] == entity) {
       return;
     }
   }
 
-  const size_t i_entity = archetype->n_entities++;
+  GROW_LIST_IF_NEEDED(archetype, 512u, entities, sizeof(cecs_entity_t));
 
-  if (archetype->n_entities >= archetype->cap_entities) {
-    if (archetype->cap_entities == 0) {
-      archetype->cap_entities = 512u;
-    }
-    archetype->cap_entities *= 2;
-    archetype->entities
-      = realloc(archetype->entities, archetype->cap_entities * sizeof(cecs_entity_t));
-  }
-
-  archetype->entities[i_entity] = entity;
+  archetype->entities[archetype->count++] = entity;
 }
 
 
 /** Remove the given entity from the specified archetype because its archetype changed */
 static void remove_entity_from_archetype(const cecs_entity_t entity, struct archetype *archetype)
 {
-  for (cecs_entity_t i = 0; i < archetype->n_entities; ++i) {
+  for (cecs_entity_t i = 0; i < archetype->count; ++i) {
     if (archetype->entities[i] == entity) {
       /* Put the last entity in the array into the removed entity's slot */
-      archetype->entities[i] = archetype->entities[--archetype->n_entities];
+      archetype->entities[i] = archetype->entities[--archetype->count];
       return;
     }
   }
@@ -588,7 +579,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
 
   for (size_t i_archetype = 0; i_archetype < archetypes->count; ++i_archetype) {
     struct archetype *archetype = archetypes->elements[i_archetype];
-    for (size_t i = 0; i < archetype->n_entities; ++i) {
+    for (size_t i = 0; i < archetype->count; ++i) {
       if (put_entity_in_set(&it->set, archetype->entities[i])) {
         ++n_entities;
       }
