@@ -391,7 +391,7 @@ static cecs_sig_t *get_sig_by_entity(const cecs_entity_t entity)
 /** Register the given component size with its ID */
 static struct component_by_id_entry *register_component(const cecs_component_t id, const size_t size)
 {
-  const size_t i_bucket = (size_t)(id % N_SIG_BY_ENTITY_BUCKETS);
+  const size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
 
   struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
 
