@@ -405,43 +405,7 @@ static struct component_by_id_entry *register_component(const cecs_component_t i
 
   /* Populate the component ID and size */
   entry->id   = id;
-  entry->size = size;
-
-  /* Grow the component store and entities list to a minimum starting size */
-  if (entry->entities.count >= entry->entities.cap) {
-    if (entry->entities.cap == 0u) {
-      entry->entities.cap = 64u;
-
-      /* Reallocate and zero the entities list for this component */
-      entry->entities.entities
-        = realloc(entry->entities.entities, entry->entities.cap * sizeof(cecs_entity_t));
-      memset((uint8_t *)entry->entities.entities, 0u, entry->entities.cap * sizeof(cecs_entity_t));
-
-      /* Reallocate and zero the entity data for this component */
-      entry->data = realloc(entry->data, entry->entities.cap * size);
-      memset((uint8_t *)entry->data, 0u, entry->entities.cap * size);
-
-    } else {
-      /* Reallocate and zero the entities list for this component */
-      entry->entities.entities
-        = realloc(entry->entities.entities, entry->entities.cap * 2u * sizeof(cecs_entity_t));
-      memset(
-        ((uint8_t *)entry->entities.entities) + entry->entities.cap * sizeof(cecs_entity_t),
-        0u,
-        entry->entities.cap * sizeof(cecs_entity_t)
-      );
-
-      /* Reallocate and zero the entity data for this component */
-      entry->data = realloc(entry->data, entry->entities.cap * size);
-      memset(
-        ((uint8_t *)entry->data) + entry->entities.cap * size,
-        0u,
-        entry->entities.cap * size
-      );
-
-      entry->entities.cap *= 2u;
-    }
-  }
+  entry->size = size; 
 
   return entry;
 }
@@ -472,7 +436,42 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
     }
   }
 
-  GROW_LIST_IF_NEEDED(&entry->entities, 64u, entities, cecs_entity_t);
+  /* Grow the component store and entities list to a minimum starting size */
+  if (entry->entities.count >= entry->entities.cap) {
+    if (entry->entities.cap == 0u) {
+      entry->entities.cap = 64u;
+
+      /* Reallocate and zero the entities list for this component */
+      entry->entities.entities
+        = realloc(entry->entities.entities, entry->entities.cap * sizeof(cecs_entity_t));
+      memset((uint8_t *)entry->entities.entities, 0u, entry->entities.cap * sizeof(cecs_entity_t));
+
+      /* Reallocate and zero the entity data for this component */
+      entry->data = realloc(entry->data, entry->entities.cap * entry->size);
+      memset((uint8_t *)entry->data, 0u, entry->entities.cap * entry->size);
+
+    } else {
+      /* Reallocate and zero the entities list for this component */
+      entry->entities.entities
+        = realloc(entry->entities.entities, entry->entities.cap * 2u * sizeof(cecs_entity_t));
+      memset(
+        ((uint8_t *)entry->entities.entities) + entry->entities.cap * sizeof(cecs_entity_t),
+        0u,
+        entry->entities.cap * sizeof(cecs_entity_t)
+      );
+
+      /* Reallocate and zero the entity data for this component */
+      entry->data = realloc(entry->data, entry->entities.cap * entry->size);
+      memset(
+        ((uint8_t *)entry->data) + entry->entities.cap * entry->size,
+        0u,
+        entry->entities.cap * entry->size
+      );
+
+      entry->entities.cap *= 2u;
+    }
+  }
+
   entry->entities.entities[entry->entities.count++] = entity;
 }
 
