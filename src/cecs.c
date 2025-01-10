@@ -56,8 +56,10 @@ struct sig_by_entity_bucket {
   struct sig_by_entity_entry *pairs;
 };
 
+/** Minimum number of elements allocated for an entity->signature map bucket */
+#define SIG_BY_ENTITY_MIN_BUCKET_SIZE ((size_t) 32u)
 /** Number of buckets in the entity->signature map */
-#define N_SIG_BY_ENTITY_BUCKETS ((size_t)4096u)
+#define N_SIG_BY_ENTITY_BUCKETS ((size_t) 16384u)
 /** Map from entity ID to the signature it implements */
 struct sig_by_entity_bucket sigs_by_entity[N_SIG_BY_ENTITY_BUCKETS] = { 0u };
 
@@ -83,6 +85,8 @@ struct index_by_entity_bucket {
   struct index_by_entity_pair *pairs;
 };
 
+/** Minimum number of elements allocated for an entity->index map bucket */
+#define INDEX_BY_ENTITY_MIN_BUCKET_SIZE ((size_t) 8u)
 /** Number of buckets in the entity ID->index map */
 #define N_INDICES_BY_ENTITY_BUCKETS ((size_t)16384u)
 
@@ -104,6 +108,10 @@ struct component_by_id_bucket {
   struct component_by_id_table *pairs;
 };
 
+/** Minimum number of elements allocated for component data by index */
+#define COMPONENT_TABLE_MIN_DATA_SIZE ((size_t) 16384u)
+/** Minimum number of elements allocated for a component ID->component map bucket */
+#define COMPONENT_BY_ID_MIN_BUCKET_SIZE ((size_t) 8u)
 /** Number of buckets in the componet ID->data map */
 #define N_COMPONENT_BY_ID_BUCKETS ((size_t)1024u)
 /** Map from component ID to component data and implementing entities list */
@@ -142,12 +150,20 @@ struct archetype_list {
   struct archetype **elements;
 };
 
+/** Minimum number of elements to allocate for an entity list for a given archetype */
+#define ARCHETYPE_ENTITIES_LIST_MIN_SIZE ((size_t) 16384u)
+/** Minimum number of elements allocated for a list of archetypes */
+#define ARCHETYPES_LIST_MIN_SIZE ((size_t)32u)
+/** Minimum number of elements allocated for a signature->archetype map bucket */
+#define ARCHETYPES_BY_SIG_MIN_BUCKET_SIZE ((size_t)32u)
 /** Number of buckets in the signature->archetype map */
 #define N_ARCHETYPE_BY_SIG_BUCKETS ((size_t)256u)
 /** Map from signature to the archetype it represents */
 struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKETS] = { 0u };
 
 
+/** Minmum number of elements allocated for an entity set bucket */
+#define ENTITY_SET_MIN_BUCKET_SIZE ((size_t) 16384u)
 /** Cache the set used to return query result so we don't have to allocate
  * buckets on every query */
 struct cecs_entity_set query_result_cache;
@@ -250,7 +266,7 @@ static struct archetype_list *get_archetypes_by_sig(const cecs_sig_t *sig)
     for (size_t i_entry = 0; i_entry < bucket->count; ++i_entry) {
       struct archetype_by_sig_entry *entry = &bucket->pairs[i_entry];
       if (sig_is_in(sig, &entry->sig)) {
-        GROW_LIST_IF_NEEDED(list, 32u, elements, struct archetype *);
+        GROW_LIST_IF_NEEDED(list, ARCHETYPES_LIST_MIN_SIZE, elements, struct archetype *);
         list->elements[list->count++] = &entry->archetype;
       }
     }
@@ -281,7 +297,7 @@ static struct archetype *set_archetype_by_sig(const cecs_sig_t *sig, const struc
 
   /* Entity wasn't found in bucket. Check if we need to expand the bucket first
    */
-  GROW_LIST_IF_NEEDED(bucket, 64u, pairs, struct archetype_by_sig_entry);
+  GROW_LIST_IF_NEEDED(bucket, ARCHETYPES_BY_SIG_MIN_BUCKET_SIZE, pairs, struct archetype_by_sig_entry);
 
   /* Add a new entry to the bucket */
   struct archetype_by_sig_entry *entry = &bucket->pairs[bucket->count++];
@@ -372,7 +388,7 @@ static bool put_entity_in_set(struct cecs_entity_set *set, const cecs_entity_t e
     }
   }
 
-  GROW_LIST_IF_NEEDED(bucket, 16384u, entities, cecs_entity_t);
+  GROW_LIST_IF_NEEDED(bucket, ENTITY_SET_MIN_BUCKET_SIZE, entities, cecs_entity_t);
 
   /* Add an entry to the end of the bucket and increase the count */
   bucket->entities[bucket->count++] = entity;
@@ -397,7 +413,7 @@ static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
     }
   }
 
-  GROW_LIST_IF_NEEDED(bucket, 64u, pairs, struct sig_by_entity_entry);
+  GROW_LIST_IF_NEEDED(bucket, SIG_BY_ENTITY_MIN_BUCKET_SIZE, pairs, struct sig_by_entity_entry);
 
   /* Entity wasn't found in bucket; add a new entry to the bucket bucket */
   struct sig_by_entity_entry *entry = &bucket->pairs[bucket->count++];
@@ -438,7 +454,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
 
   /* If component ID not found in bucket, */
   if (!table) {
-    GROW_LIST_IF_NEEDED(bucket, 64u, pairs, struct component_by_id_table);
+    GROW_LIST_IF_NEEDED(bucket, COMPONENT_BY_ID_MIN_BUCKET_SIZE, pairs, struct component_by_id_table);
     table = &bucket->pairs[bucket->count++];
   }
 
@@ -454,7 +470,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
   }
 
   /* Not a duplicate; add to the end of the bucket */
-  GROW_LIST_IF_NEEDED(index_bucket, 64u, pairs, cecs_entity_t);
+  GROW_LIST_IF_NEEDED(index_bucket, INDEX_BY_ENTITY_MIN_BUCKET_SIZE, pairs, cecs_entity_t);
   index_pair = &index_bucket->pairs[index_bucket->count++];
 
   index_pair->entity = entity;
@@ -466,7 +482,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
   if (table->count >= table->cap) {
     if (table->cap == 0u) {
       /* Allocate for the first time */
-      table->cap  = 1024u;
+      table->cap  = COMPONENT_TABLE_MIN_DATA_SIZE;
       table->data = realloc(table->data, table->cap * table->size);
       memset(table->data, 0u, table->cap * table->size);
 
@@ -534,7 +550,7 @@ static void add_entity_to_archetype(const cecs_entity_t entity, struct archetype
     }
   }
 
-  GROW_LIST_IF_NEEDED(archetype, 512u, entities, sizeof(cecs_entity_t));
+  GROW_LIST_IF_NEEDED(archetype, ARCHETYPE_ENTITIES_LIST_MIN_SIZE, entities, sizeof(cecs_entity_t));
 
   archetype->entities[archetype->count++] = entity;
 }
@@ -569,7 +585,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   /* Clear the previous results from the cached set */
   for (size_t i = 0; i < N_ENTITY_SET_BUCKETS; ++i) {
     struct cecs_entity_set_bucket *bucket = &it->set->buckets[i];
-    bucket->count = 0u;
+    bucket->count                         = 0u;
   }
 
   va_start(components, n);
@@ -701,7 +717,7 @@ void cecs_register_component(const cecs_component_t id, const size_t size)
 
   /* If component ID not found in bucket, */
   if (!entry) {
-    GROW_LIST_IF_NEEDED(bucket, 32u, pairs, struct component_by_id_table);
+    GROW_LIST_IF_NEEDED(bucket, COMPONENT_BY_ID_MIN_BUCKET_SIZE, pairs, struct component_by_id_table);
     entry = &bucket->pairs[bucket->count++];
   }
 
