@@ -100,6 +100,11 @@ extern cecs_component_t CECS_NEXT_COMPONENT_ID;
 #define cecs_zero(entity, ...) \
   _cecs_zero(entity, FOR_EACH_NARG(__VA_ARGS__), FOR_EACH(CECS_ID_OF, __VA_ARGS__))
 
+#define cecs_set_new(entity, type, source) \
+  cecs_add(entity, type);                 \
+  cecs_set(entity, type, source)
+
+
 /** A signature represents the components implemented by a type as a bit set. */
 typedef struct {
   cecs_component_t components[CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS)];
