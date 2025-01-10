@@ -465,10 +465,13 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
   /* Grow the component table if needed */
   if (table->count >= table->cap) {
     if (table->cap == 0u) {
+      /* Allocate for the first time */
       table->cap  = 1024u;
       table->data = realloc(table->data, table->cap * table->size);
       memset(table->data, 0u, table->cap * table->size);
+
     } else {
+      /* Double the size and zero out the new data capacity */
       table->data = realloc(table->data, table->cap * 2u * table->size);
       memset(
         ((uint8_t *)table->data) + table->cap * table->size,
