@@ -425,29 +425,6 @@ static cecs_sig_t *get_sig_by_entity(const cecs_entity_t entity)
 }
 
 
-/** Register the given component size with its ID */
-static struct component_by_id_table *register_component(const cecs_component_t id, const size_t size)
-{
-  const size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
-  struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
-
-  struct component_by_id_table *entry = NULL;
-  FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
-
-  /* If component ID not found in bucket, */
-  if (!entry) {
-    GROW_LIST_IF_NEEDED(bucket, 32u, pairs, struct component_by_id_table);
-    entry = &bucket->pairs[bucket->count++];
-  }
-
-  /* Populate the component ID and size */
-  entry->id   = id;
-  entry->size = size;
-
-  return entry;
-}
-
-
 /** Add a block of component data for the given entity */
 static void add_entity_to_component(const cecs_component_t id, const cecs_entity_t entity)
 {
@@ -589,7 +566,6 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   /* Clear the previous results from the cached set */
   for (size_t i = 0; i < N_ENTITY_SET_BUCKETS; ++i) {
     struct cecs_entity_set_bucket *bucket = &it->set->buckets[i];
-    memset(bucket->entities, 0u, bucket->count * sizeof(cecs_entity_t));
     bucket->count = 0u;
   }
 
@@ -714,7 +690,21 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 /** Register the given component as having the specified size */
 void cecs_register_component(const cecs_component_t id, const size_t size)
 {
-  register_component(id, size);
+  const size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
+  struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
+
+  struct component_by_id_table *entry = NULL;
+  FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
+
+  /* If component ID not found in bucket, */
+  if (!entry) {
+    GROW_LIST_IF_NEEDED(bucket, 32u, pairs, struct component_by_id_table);
+    entry = &bucket->pairs[bucket->count++];
+  }
+
+  /* Populate the component ID and size */
+  entry->id   = id;
+  entry->size = size;
 }
 
 
