@@ -171,9 +171,9 @@ struct cecs_entity_set query_result_cache;
 /** Find the entry in list `bucket` whose `identifier` matches `search` and
  * return it in `result` */
 #define FIND_ENTRY_IN_BUCKET(bucket, identifier, search, result) \
-  for (size_t _i = 0; _i < (bucket)->count; ++_i) {                 \
-    if ((bucket)->pairs[_i].identifier == (search)) {             \
-      (result) = &(bucket)->pairs[_i];                            \
+  for (size_t _i = 0; _i < (bucket)->count; ++_i) {              \
+    if ((bucket)->pairs[_i].identifier == (search)) {            \
+      (result) = &(bucket)->pairs[_i];                           \
     }                                                            \
   }
 
@@ -519,7 +519,7 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
     return;
   }
 
-  (void) entity;
+  (void)entity;
 
   /* Pick another table entry and copy its data into the empty spot, reassigning
    * its index to that new position. */
