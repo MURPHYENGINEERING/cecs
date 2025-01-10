@@ -25,6 +25,10 @@ CECS_COMPONENT_DECL(has_velocity_t);
 CECS_COMPONENT_DECL(has_health_t);
 CECS_COMPONENT_DECL(is_alive_t);
 
+CECS_COMPONENT_DEF(has_position_t);
+CECS_COMPONENT_DEF(has_velocity_t);
+CECS_COMPONENT_DEF(has_health_t);
+CECS_COMPONENT_DEF(is_alive_t);
 
 
 void move_system()
@@ -40,7 +44,7 @@ void move_system()
 
     health->hp -= 10;
     if (health->hp <= 0) {
-      cecs_remove(entity, is_alive_t);
+      //cecs_remove(entity, is_alive_t);
     }
     printf("[alive, health] %llu = %d\n", entity, health->hp);
   }
@@ -114,7 +118,7 @@ int main()
   /* Try adding and removing components to and from the entity after creation */
   entity = cecs_create(has_velocity_t);
   cecs_add(entity, has_position_t);
-  cecs_remove(entity, has_position_t);
+  //cecs_remove(entity, has_position_t);
   cecs_add(entity, has_position_t);
   cecs_add(entity, has_health_t);
 
@@ -122,8 +126,11 @@ int main()
   cecs_set(entity, has_velocity_t, &velocity);
   cecs_set(entity, has_health_t, &health);
 
-  cecs_remove(entity1, has_position_t);
+  //cecs_remove(entity1, has_position_t);
 
+  for (size_t i = 0; i < 10000; ++i) {
+    cecs_create(has_position_t, has_velocity_t);
+  }
 
   /* Iterate the "move" system, which updates position based on velocity. */
   for (size_t i = 0; i < 4; ++i) {
