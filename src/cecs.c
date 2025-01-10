@@ -170,15 +170,15 @@ struct cecs_entity_set query_result_cache;
 
 
 /** Grow the given list to the minimum size if empty, or double its size */
-#define GROW_LIST_IF_NEEDED(list, min_size, pairs, type)                                               \
+#define GROW_LIST_IF_NEEDED(list, min_size, entries, type)                                               \
   if ((list)->count >= (list)->cap) {                                                                  \
     if ((list)->cap == 0u) {                                                                           \
       (list)->cap   = (min_size);                                                                      \
-      (list)->pairs = realloc((list)->pairs, (list)->cap * sizeof(type));                              \
-      memset((uint8_t *)(list)->pairs, 0u, (list)->cap * sizeof(type));                                \
+      (list)->entries = realloc((list)->entries, (list)->cap * sizeof(type));                              \
+      memset((uint8_t *)(list)->entries, 0u, (list)->cap * sizeof(type));                                \
     } else {                                                                                           \
-      (list)->pairs = realloc((list)->pairs, ((list)->cap * 2u) * sizeof(type));                       \
-      memset(((uint8_t *)(list)->pairs) + (list)->cap * sizeof(type), 0u, (list)->cap * sizeof(type)); \
+      (list)->entries = realloc((list)->entries, ((list)->cap * 2u) * sizeof(type));                       \
+      memset(((uint8_t *)(list)->entries) + (list)->cap * sizeof(type), 0u, (list)->cap * sizeof(type)); \
       (list)->cap *= 2u;                                                                               \
     }                                                                                                  \
   }
@@ -515,12 +515,25 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
     return;
   }
 
-  (void)entity;
+  const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
+  struct index_by_entity_bucket *index_bucket = &entry->indices_by_entity[i_index_bucket];
 
-  /* Pick another table entry and copy its data into the empty spot, reassigning
-   * its index to that new position. */
+  struct index_by_entity_pair *index_pair = NULL;
+  FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_pair);
 
-  assert(false && "REMOVE COMPONENT NOT IMPLEMENTED");
+  if (!index_pair) {
+    /* Entity doesn't have component */
+    return;
+  }
+
+  /* Find the entity with the last entry in the component data table.
+   * This will replace our chosen entity to remove. */
+  /* TODO: Currently we don't evict component data when removed. Maybe use a
+   * free list and newly-added entities can choose indices from it instead. */
+
+  /* Move the last entry in the bucket into this position, overwriting the
+   * removed entity */
+  memcpy(index_pair, &index_bucket->pairs[--index_bucket->count], sizeof(struct index_by_entity_pair));
 }
 
 
@@ -615,10 +628,10 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
 /** Get a pointer to the component data for the given entity and component pair */
 void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
 {
-  struct component_by_id_table *entry = get_component_by_id(id);
+  struct component_by_id_table *component = get_component_by_id(id);
 
   const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
-  struct index_by_entity_bucket *index_bucket = &entry->indices_by_entity[i_index_bucket];
+  struct index_by_entity_bucket *index_bucket = &component->indices_by_entity[i_index_bucket];
 
   struct index_by_entity_pair *index_by_entity = NULL;
   FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
@@ -628,7 +641,7 @@ void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
     return NULL;
   }
 
-  return (void *)(((uint8_t *)entry->data) + (index_by_entity->index * entry->size));
+  return (void *)(((uint8_t *)component->data) + (index_by_entity->index * component->size));
 }
 
 
