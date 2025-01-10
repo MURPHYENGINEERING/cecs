@@ -57,18 +57,26 @@ struct sig_by_entity_bucket {
 };
 
 /** Minimum number of elements allocated for an entity->signature map bucket */
-#define SIG_BY_ENTITY_MIN_BUCKET_SIZE ((size_t) 32u)
+#define SIG_BY_ENTITY_MIN_BUCKET_SIZE ((size_t)32u)
 /** Number of buckets in the entity->signature map */
-#define N_SIG_BY_ENTITY_BUCKETS ((size_t) 16384u)
+#define N_SIG_BY_ENTITY_BUCKETS ((size_t)16384u)
 /** Map from entity ID to the signature it implements */
 struct sig_by_entity_bucket sigs_by_entity[N_SIG_BY_ENTITY_BUCKETS] = { 0u };
 
 
-/* List of entity IDs */
+/** List of entity IDs */
 struct entity_list {
   size_t count;
   size_t cap;
   cecs_entity_t *entities;
+};
+
+
+/** List of free indices to be used when adding new entities to components */
+struct index_list {
+  size_t count;
+  size_t cap;
+  size_t *indices;
 };
 
 
@@ -86,7 +94,7 @@ struct index_by_entity_bucket {
 };
 
 /** Minimum number of elements allocated for an entity->index map bucket */
-#define INDEX_BY_ENTITY_MIN_BUCKET_SIZE ((size_t) 8u)
+#define INDEX_BY_ENTITY_MIN_BUCKET_SIZE ((size_t)8u)
 /** Number of buckets in the entity ID->index map */
 #define N_INDICES_BY_ENTITY_BUCKETS ((size_t)16384u)
 
@@ -99,6 +107,7 @@ struct component_by_id_table {
   size_t cap;
   size_t count;
   struct index_by_entity_bucket indices_by_entity[N_INDICES_BY_ENTITY_BUCKETS];
+  struct index_list free_indices;
 };
 
 /** List of ID->component pairs, to be stored in the id->component map */
@@ -109,9 +118,9 @@ struct component_by_id_bucket {
 };
 
 /** Minimum number of elements allocated for component data by index */
-#define COMPONENT_TABLE_MIN_DATA_SIZE ((size_t) 16384u)
+#define COMPONENT_TABLE_MIN_DATA_SIZE ((size_t)16384u)
 /** Minimum number of elements allocated for a component ID->component map bucket */
-#define COMPONENT_BY_ID_MIN_BUCKET_SIZE ((size_t) 8u)
+#define COMPONENT_BY_ID_MIN_BUCKET_SIZE ((size_t)8u)
 /** Number of buckets in the componet ID->data map */
 #define N_COMPONENT_BY_ID_BUCKETS ((size_t)1024u)
 /** Map from component ID to component data and implementing entities list */
@@ -151,7 +160,7 @@ struct archetype_list {
 };
 
 /** Minimum number of elements to allocate for an entity list for a given archetype */
-#define ARCHETYPE_ENTITIES_LIST_MIN_SIZE ((size_t) 16384u)
+#define ARCHETYPE_ENTITIES_LIST_MIN_SIZE ((size_t)16384u)
 /** Minimum number of elements allocated for a list of archetypes */
 #define ARCHETYPES_LIST_MIN_SIZE ((size_t)32u)
 /** Minimum number of elements allocated for a signature->archetype map bucket */
@@ -163,7 +172,7 @@ struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKETS] = {
 
 
 /** Minmum number of elements allocated for an entity set bucket */
-#define ENTITY_SET_MIN_BUCKET_SIZE ((size_t) 16384u)
+#define ENTITY_SET_MIN_BUCKET_SIZE ((size_t)16384u)
 /** Cache the set used to return query result so we don't have to allocate
  * buckets on every query */
 struct cecs_entity_set query_result_cache;
@@ -474,9 +483,16 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
   index_pair = &index_bucket->pairs[index_bucket->count++];
 
   index_pair->entity = entity;
-  /* The index is the last table in the component data table, then increment the
-   * count of data elements in the table. */
-  index_pair->index = table->count++;
+  /* Get an index into the component data table for this entity. */
+  if (table->free_indices.count > 0) {
+    /* There is a free slot due to another entity being removed from the
+     * component; use that. */
+    index_pair->index = table->free_indices.indices[--table->free_indices.count];
+    printf("Reusing data slot %llu for component %llu\n", index_pair->index, id);
+  } else {
+    /* No free slots, add a slot to the data table */
+    index_pair->index = table->count++;
+  }
 
   /* Grow the component table if needed */
   if (table->count >= table->cap) {
@@ -507,16 +523,17 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
   const size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
   struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
 
-  struct component_by_id_table *entry = NULL;
-  FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
+  struct component_by_id_table *component = NULL;
+  FIND_ENTRY_IN_BUCKET(bucket, id, id, component);
 
-  if (!entry) {
+  if (!component) {
     /* Component doesn't exist */
     return;
   }
 
   const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
-  struct index_by_entity_bucket *index_bucket = &entry->indices_by_entity[i_index_bucket];
+  struct index_by_entity_bucket *index_bucket
+    = &component->indices_by_entity[i_index_bucket];
 
   struct index_by_entity_pair *index_pair = NULL;
   FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_pair);
@@ -526,10 +543,10 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
     return;
   }
 
-  /* Find the entity with the last entry in the component data table.
-   * This will replace our chosen entity to remove. */
-  /* TODO: Currently we don't evict component data when removed. Maybe use a
-   * free list and newly-added entities can choose indices from it instead. */
+  /* Grow the free indices list if needed */
+  GROW_LIST_IF_NEEDED(&component->free_indices, 32u, indices, size_t);
+  /* Add the removed entity's data index to the free list */
+  component->free_indices.indices[component->free_indices.count++] = index_pair->index;
 
   /* Move the last entry in the bucket into this position, overwriting the
    * removed entity */
@@ -631,7 +648,8 @@ void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
   struct component_by_id_table *component = get_component_by_id(id);
 
   const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
-  struct index_by_entity_bucket *index_bucket = &component->indices_by_entity[i_index_bucket];
+  struct index_by_entity_bucket *index_bucket
+    = &component->indices_by_entity[i_index_bucket];
 
   struct index_by_entity_pair *index_by_entity = NULL;
   FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
@@ -641,7 +659,8 @@ void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
     return NULL;
   }
 
-  return (void *)(((uint8_t *)component->data) + (index_by_entity->index * component->size));
+  return (void *)(((uint8_t *)component->data)
+                  + (index_by_entity->index * component->size));
 }
 
 
