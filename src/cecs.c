@@ -8,6 +8,9 @@
 #include <cecs/cecs.h>
 
 
+#define __always_inline __attribute__((__always_inline__))
+
+
 /** Convert a component ID to the LSB into the appropriate index into the
  * signature bit field array. */
 #define CECS_COMPONENT_TO_LSB(component) \
@@ -171,6 +174,23 @@ struct archetype_list {
 struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKETS] = { 0u };
 
 
+/** List of entities in a bucket in the entity set */
+struct cecs_entity_set_bucket {
+  size_t count;
+  size_t cap;
+  /* Holds the value of the bucket when count == 1 */
+  cecs_entity_t value;
+  cecs_entity_t *entities;
+};
+
+/** Number of buckets in an entity set */
+#define N_ENTITY_SET_BUCKETS ((size_t)8192u)
+/** Set of unique entity IDs */
+struct cecs_entity_set {
+  struct cecs_entity_set_bucket buckets[N_ENTITY_SET_BUCKETS];
+};
+
+
 /** Minmum number of elements allocated for an entity set bucket */
 #define ENTITY_SET_MIN_BUCKET_SIZE ((size_t)16384u)
 /** Cache the set used to return query result so we don't have to allocate
@@ -204,7 +224,7 @@ struct cecs_entity_set query_result_cache;
 
 
 /** Returns true if the two signatures are equivalent */
-static bool sigs_are_equal(const cecs_sig_t *lhs, const cecs_sig_t *rhs)
+static bool __always_inline sigs_are_equal(const cecs_sig_t *lhs, const cecs_sig_t *rhs)
 {
   for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     if (lhs->components[i] != rhs->components[i]) {
@@ -217,7 +237,7 @@ static bool sigs_are_equal(const cecs_sig_t *lhs, const cecs_sig_t *rhs)
 
 
 /** Returns true if `look_for` is entirely represented by `in` */
-static bool sig_is_in(const cecs_sig_t *look_for, const cecs_sig_t *in)
+static bool __always_inline sig_is_in(const cecs_sig_t *look_for, const cecs_sig_t *in)
 {
   for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     if ((look_for->components[i] & in->components[i]) != look_for->components[i]) {
@@ -230,7 +250,7 @@ static bool sig_is_in(const cecs_sig_t *look_for, const cecs_sig_t *in)
 
 
 /** Return the boolean OR union of the two signatures */
-static void sig_union(cecs_sig_t *target, const cecs_sig_t *with)
+static void __always_inline sig_union(cecs_sig_t *target, const cecs_sig_t *with)
 {
   for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     target->components[i] |= with->components[i];
@@ -239,7 +259,7 @@ static void sig_union(cecs_sig_t *target, const cecs_sig_t *with)
 
 
 /** Return `target` less all the components in `to_remove` */
-static void sig_remove(cecs_sig_t *target, const cecs_sig_t *to_remove)
+static void __always_inline sig_remove(cecs_sig_t *target, const cecs_sig_t *to_remove)
 {
   for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     target->components[i] &= ~to_remove->components[i];
@@ -383,29 +403,6 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
 }
 
 
-/** Add a unique entity ID to the given entity set */
-static bool put_entity_in_set(struct cecs_entity_set *set, const cecs_entity_t entity)
-{
-  size_t i_bucket = (size_t)(entity % N_ENTITY_SET_BUCKETS);
-
-  struct cecs_entity_set_bucket *bucket = &set->buckets[i_bucket];
-
-  /* Check for duplicates */
-  for (size_t i = 0; i < bucket->count; ++i) {
-    if (bucket->entities[i] == entity) {
-      return false;
-    }
-  }
-
-  GROW_LIST_IF_NEEDED(bucket, ENTITY_SET_MIN_BUCKET_SIZE, entities, cecs_entity_t);
-
-  /* Add an entry to the end of the bucket and increase the count */
-  bucket->entities[bucket->count++] = entity;
-
-  return true;
-}
-
-
 /** Populate the entity->signature map */
 static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
 {
@@ -488,7 +485,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
     /* There is a free slot due to another entity being removed from the
      * component; use that. */
     index_pair->index = table->free_indices.indices[--table->free_indices.count];
-    printf("Reusing data slot %llu for component %llu\n", index_pair->index, id);
+    printf("Reusing data slot %zu for component %llu\n", index_pair->index, id);
   } else {
     /* No free slots, add a slot to the data table */
     index_pair->index = table->count++;
@@ -630,7 +627,23 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   for (size_t i_archetype = 0; i_archetype < archetypes->count; ++i_archetype) {
     struct archetype *archetype = archetypes->elements[i_archetype];
     for (size_t i = 0; i < archetype->count; ++i) {
-      if (put_entity_in_set(it->set, archetype->entities[i])) {
+      const cecs_entity_t entity = archetype->entities[i];
+      const size_t i_bucket = (size_t)(entity % N_ENTITY_SET_BUCKETS);
+      struct cecs_entity_set_bucket *bucket = &it->set->buckets[i_bucket];
+
+      /* Check for duplicates */
+      bool exists = false;
+      for (size_t j = 0; j < bucket->count; ++j) {
+        if (bucket->entities[j] == entity) {
+          exists = true;
+          break;
+        }
+      }
+      if (!exists) {
+        GROW_LIST_IF_NEEDED(bucket, ENTITY_SET_MIN_BUCKET_SIZE, entities, cecs_entity_t);
+
+        /* Add an entry to the end of the bucket and increase the count */
+        bucket->entities[bucket->count++] = entity;
         ++n_entities;
       }
     }
