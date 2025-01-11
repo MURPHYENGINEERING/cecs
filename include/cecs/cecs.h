@@ -111,19 +111,7 @@ typedef struct {
 } cecs_sig_t;
 
 
-/** List of entities in a bucket in the entity set */
-struct cecs_entity_set_bucket {
-  size_t count;
-  size_t cap;
-  cecs_entity_t *entities;
-};
-
-/** Number of buckets in an entity set */
-#define N_ENTITY_SET_BUCKETS ((size_t)8192u)
-/** Set of unique entity IDs */
-struct cecs_entity_set {
-  struct cecs_entity_set_bucket buckets[N_ENTITY_SET_BUCKETS];
-};
+struct cecs_entity_set;
 
 /** Iterator over a set of entities */
 typedef struct {
