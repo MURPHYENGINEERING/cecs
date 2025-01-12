@@ -766,17 +766,20 @@ cecs_entity_t _cecs_create(const cecs_component_t n, ...)
   cecs_sig_t sig = components_to_sig(n, components);
   va_end(components);
 
-  cecs_entity_t entity = g_next_entity++;
+  const cecs_entity_t entity = g_next_entity++;
 
+  /* Update the entity's cached signature */
   set_sig_by_entity(entity, &sig);
 
+  /* Add the entity to its new archetype */
   add_entity_to_archetype(entity, get_or_add_archetype_by_sig(&sig));
 
-  for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
-    if (CECS_HAS_COMPONENT(&sig, i)) {
-      add_entity_to_component(i, entity);
-    }
+  /* Add the entity to all the named components */
+  va_start(components, n);
+  for (size_t i = 0; i < n; ++i) {
+    add_entity_to_component(va_arg(components, cecs_component_t), entity);
   }
+  va_end(components);
 
   return entity;
 }
@@ -802,7 +805,9 @@ void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...)
 
   /* Add the entity to all components named */
   va_start(components, n);
-  add_entity_to_component(va_arg(components, cecs_component_t), entity);
+  for (size_t i = 0; i < n; ++i) {
+    add_entity_to_component(va_arg(components, cecs_component_t), entity);
+  }
   va_end(components);
 }
 
@@ -838,7 +843,9 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 
   /* Remove the entity from all components named in the list */
   va_start(components, n);
-  remove_entity_from_component(va_arg(components, cecs_component_t), entity);
+  for (size_t i = 0; i < n; ++i) {
+    remove_entity_from_component(va_arg(components, cecs_component_t), entity);
+  }
   va_end(components);
 }
 
