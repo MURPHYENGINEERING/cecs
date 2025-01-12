@@ -383,7 +383,7 @@ static struct archetype *get_or_add_archetype_by_sig(const cecs_sig_t *sig)
 /** Populate the entity->signature map */
 static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
 {
-  size_t i_bucket = (size_t)(entity % N_SIG_BY_ENTITY_BUCKETS);
+  const size_t i_bucket = (size_t)(entity % N_SIG_BY_ENTITY_BUCKETS);
 
   struct sig_by_entity_bucket *bucket = &sigs_by_entity[i_bucket];
 
@@ -409,7 +409,7 @@ static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
 /** Get the signature implemented by the given entity */
 static cecs_sig_t *get_sig_by_entity(const cecs_entity_t entity)
 {
-  size_t i_bucket = (size_t)(entity % N_SIG_BY_ENTITY_BUCKETS);
+  const size_t i_bucket = (size_t)(entity % N_SIG_BY_ENTITY_BUCKETS);
 
   struct sig_by_entity_bucket *bucket = &sigs_by_entity[i_bucket];
 
@@ -480,7 +480,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
     }
 
     /* No duplicates, found, add entity to component */
-    GROW_LIST_IF_NEEDED(index_bucket, INDEX_BY_ENTITY_MIN_BUCKET_SIZE, pairs, cecs_entity_t);
+    GROW_LIST_IF_NEEDED(index_bucket, INDEX_BY_ENTITY_MIN_BUCKET_SIZE, pairs, struct index_by_entity_pair);
 
     if (index_bucket->count == 1u) {
       /* Transitioning from 0 to 1 elements. Put the singulate value in the list */
@@ -758,16 +758,11 @@ void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
     FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
   }
 
-  printf("Bucket for entity %llu: %zu\n", entity, i_index_bucket);
-  printf("Bucket count: %zu\n", index_bucket->count);
-  printf("Bucket[3] entity: %llu\n", index_bucket->pairs[3].entity);
-
   if (!index_by_entity) {
     /* Entity doesn't have component */
     return NULL;
   }
 
-  printf("Entity %llu Index: %zu\n", entity, index_by_entity->index);
   return (void *)(((uint8_t *)component->data)
                   + (index_by_entity->index * component->size));
 }
