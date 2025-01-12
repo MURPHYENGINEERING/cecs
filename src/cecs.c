@@ -678,7 +678,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   va_end(components);
 
   struct archetype_list *archetypes = get_archetypes_by_sig(&sig);
-  if (!archetypes) {
+  if (archetypes->count == 0u) {
     /* There are no entities with this archetype */
     return 0u;
   }
