@@ -384,7 +384,6 @@ static struct archetype *get_or_add_archetype_by_sig(const cecs_sig_t *sig)
 static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
 {
   const size_t i_bucket = (size_t)(entity % N_SIG_BY_ENTITY_BUCKETS);
-
   struct sig_by_entity_bucket *bucket = &sigs_by_entity[i_bucket];
 
   /* If entity already exists in bucket, just overwrite its value */
@@ -396,9 +395,8 @@ static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
     }
   }
 
-  GROW_LIST_IF_NEEDED(bucket, SIG_BY_ENTITY_MIN_BUCKET_SIZE, pairs, struct sig_by_entity_entry);
-
   /* Entity wasn't found in bucket; add a new entry to the bucket bucket */
+  GROW_LIST_IF_NEEDED(bucket, SIG_BY_ENTITY_MIN_BUCKET_SIZE, pairs, struct sig_by_entity_entry);
   struct sig_by_entity_entry *entry = &bucket->pairs[bucket->count++];
 
   entry->entity = entity;
@@ -541,11 +539,9 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
     = &component->indices_by_entity[i_index_bucket];
 
   if (index_bucket->count == 0u) {
-    /* Entity doesn't have component */
+    /* Component doesn't belong to any entities */
     return;
   }
-
-  struct index_by_entity_pair *index_pair = NULL;
 
   if (index_bucket->count == 1u) {
     /* Entity is stored in component's singulate value */
@@ -558,6 +554,7 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
     }
   }
 
+  struct index_by_entity_pair *index_pair = NULL;
   /* Component bucket has entity list, search it for the entity */
   FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_pair);
 
@@ -571,9 +568,14 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
   /* Add the removed entity's data index to the free list */
   component->free_indices.indices[component->free_indices.count++] = index_pair->index;
 
-  /* Move the last entry in the bucket into this position, overwriting the
-   * removed entity */
-  memcpy(index_pair, &index_bucket->pairs[--index_bucket->count], sizeof(struct index_by_entity_pair));
+  if (index_bucket->count > 1u) {
+    /* Move the last entry in the bucket into this position, overwriting the
+     * removed entity, and decrement the bucket's count */
+    memcpy(index_pair, &index_bucket->pairs[--index_bucket->count], sizeof(struct index_by_entity_pair));
+  } else {
+    /* We don't need to fill any gaps in the bucket, just set its count to zero */
+    index_bucket->count = 0u;
+  }
 }
 
 
@@ -606,19 +608,6 @@ static void add_entity_to_archetype(const cecs_entity_t entity, struct archetype
   GROW_LIST_IF_NEEDED(archetype, ARCHETYPE_ENTITIES_LIST_MIN_SIZE, entities, sizeof(cecs_entity_t));
 
   archetype->entities[archetype->count++] = entity;
-}
-
-
-/** Remove the given entity from the specified archetype because its archetype changed */
-static void remove_entity_from_archetype(const cecs_entity_t entity, struct archetype *archetype)
-{
-  for (cecs_entity_t i = 0; i < archetype->count; ++i) {
-    if (archetype->entities[i] == entity) {
-      /* Put the last entity in the array into the removed entity's slot */
-      archetype->entities[i] = archetype->entities[--archetype->count];
-      return;
-    }
-  }
 }
 
 
@@ -735,6 +724,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
     }
   }
 
+  /* If archetypes->elements didn't exist we'd already be out of here */
   free(archetypes->elements);
   free(archetypes);
 
@@ -805,14 +795,15 @@ void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...)
 
   sig_union(sig, &sig_to_add);
 
+  /* Add the entity to its new archetype */
   add_entity_to_archetype(entity, get_or_add_archetype_by_sig(sig));
+  /* Update the cached signature for this entity */
   set_sig_by_entity(entity, sig);
 
-  for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
-    if (CECS_HAS_COMPONENT(&sig_to_add, i)) {
-      add_entity_to_component(i, entity);
-    }
-  }
+  /* Add the entity to all components named */
+  va_start(components, n);
+  add_entity_to_component(va_arg(components, cecs_component_t), entity);
+  va_end(components);
 }
 
 
@@ -821,9 +812,18 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 {
   va_list components;
 
+  /* Get the entity's current signature from the cache */
   cecs_sig_t *sig = get_sig_by_entity(entity);
 
-  remove_entity_from_archetype(entity, get_archetype_by_sig(sig));
+  /* Remove the entity from its current archetype */
+  struct archetype *archetype = get_archetype_by_sig(sig);
+  for (cecs_entity_t i = 0; i < archetype->count; ++i) {
+    if (archetype->entities[i] == entity) {
+      /* Put the last entity in the array into the removed entity's slot */
+      archetype->entities[i] = archetype->entities[--archetype->count];
+      break;
+    }
+  }
 
   va_start(components, n);
   cecs_sig_t sig_to_remove = components_to_sig(n, components);
@@ -831,14 +831,15 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 
   sig_remove(sig, &sig_to_remove);
 
+  /* Add the entity to its new archetype */
   add_entity_to_archetype(entity, get_or_add_archetype_by_sig(sig));
+  /* Cache the entity's new signature */
   set_sig_by_entity(entity, sig);
 
-  for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
-    if (CECS_HAS_COMPONENT(&sig_to_remove, i)) {
-      remove_entity_from_component(i, entity);
-    }
-  }
+  /* Remove the entity from all components named in the list */
+  va_start(components, n);
+  remove_entity_from_component(va_arg(components, cecs_component_t), entity);
+  va_end(components);
 }
 
 
