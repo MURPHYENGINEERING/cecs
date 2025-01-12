@@ -530,14 +530,32 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
 
   if (!component) {
     /* Component doesn't exist */
-    ;
+    return;
   }
 
   const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
   struct index_by_entity_bucket *index_bucket
     = &component->indices_by_entity[i_index_bucket];
 
+  if (index_bucket->count == 0u) {
+    /* Entity doesn't have component */
+    return;
+  }
+
   struct index_by_entity_pair *index_pair = NULL;
+
+  if (index_bucket->count == 1u) {
+    /* Entity is stored in component's singulate value */
+    if (index_bucket->value.entity == entity) {
+      index_bucket->count = 0u;
+      return;
+    } else {
+      /* Entity doesn't have this component */
+      return;
+    }
+  } 
+  
+  /* Component bucket has entity list, search it for the entity */
   FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_pair);
 
   if (!index_pair) {
