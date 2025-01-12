@@ -477,19 +477,20 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
       if (index_bucket->value.entity == entity) {
         return;
       }
-
-      GROW_LIST_IF_NEEDED(index_bucket, INDEX_BY_ENTITY_MIN_BUCKET_SIZE, pairs, cecs_entity_t);
-
-      if (index_bucket->count == 1u) {
-        /* Transitioning from 0 to 1 element. Put the singulate value in the list */
-        index_bucket->pairs[0u] = index_bucket->value;
-      }
-
-      /* Add the new pair to the end of the bucket */
-      index_pair         = &index_bucket->pairs[index_bucket->count++];
-      index_pair->entity = entity;
-      index_pair->index  = index;
     }
+
+    /* No duplicates, found, add entity to component */
+    GROW_LIST_IF_NEEDED(index_bucket, INDEX_BY_ENTITY_MIN_BUCKET_SIZE, pairs, cecs_entity_t);
+
+    if (index_bucket->count == 1u) {
+      /* Transitioning from 0 to 1 elements. Put the singulate value in the list */
+      index_bucket->pairs[0u] = index_bucket->value;
+    }
+
+    /* Add the new pair to the end of the bucket */
+    index_pair         = &index_bucket->pairs[index_bucket->count++];
+    index_pair->entity = entity;
+    index_pair->index  = index;
   }
 
   /* Grow the component table if needed */
@@ -498,6 +499,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
       /* Allocate for the first time */
       table->cap  = COMPONENT_TABLE_MIN_DATA_SIZE;
       table->data = realloc(table->data, table->cap * table->size);
+      assert(table->data && "Out of memory");
 #ifdef CECS_ZERO_COMPONENT_DATA
       memset(table->data, 0u, table->cap * table->size);
 #endif
@@ -505,6 +507,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
     } else {
       /* Double the size and zero out the new data capacity */
       table->data = realloc(table->data, table->cap * 2u * table->size);
+      assert(table->data && "Out of memory");
 #ifdef CECS_ZERO_COMPONENT_DATA
       memset(
         ((uint8_t *)table->data) + table->cap * table->size,
@@ -680,6 +683,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   struct archetype_list *archetypes = get_archetypes_by_sig(&sig);
   if (archetypes->count == 0u) {
     /* There are no entities with this archetype */
+    free(archetypes);
     return 0u;
   }
 
@@ -731,6 +735,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
     }
   }
 
+  free(archetypes->elements);
   free(archetypes);
 
   return n_entities;
@@ -753,12 +758,16 @@ void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
     FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
   }
 
+  printf("Bucket for entity %llu: %zu\n", entity, i_index_bucket);
+  printf("Bucket count: %zu\n", index_bucket->count);
+  printf("Bucket[3] entity: %llu\n", index_bucket->pairs[3].entity);
+
   if (!index_by_entity) {
     /* Entity doesn't have component */
     return NULL;
   }
 
-  printf("%zu\n", index_by_entity->index);
+  printf("Entity %llu Index: %zu\n", entity, index_by_entity->index);
   return (void *)(((uint8_t *)component->data)
                   + (index_by_entity->index * component->size));
 }
