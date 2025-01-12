@@ -44,7 +44,7 @@ void move_system()
 
     health->hp -= 10;
     if (health->hp <= 0) {
-      //cecs_remove(entity, is_alive_t);
+      cecs_remove(entity, is_alive_t);
     }
     printf("[alive, health] %llu = %d\n", entity, health->hp);
   }
@@ -128,9 +128,11 @@ int main()
 
   //cecs_remove(entity1, has_position_t);
 
+  #if 0
   for (size_t i = 0; i < 10000; ++i) {
     cecs_create(has_position_t, has_velocity_t);
   }
+  #endif
 
   /* Iterate the "move" system, which updates position based on velocity. */
   for (size_t i = 0; i < 4; ++i) {
