@@ -132,17 +132,38 @@ struct component_by_id_bucket {
 struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
 
 
+/** List of entities in a bucket in the entity set */
+struct entity_set_bucket {
+  size_t count;
+  size_t cap;
+  /* Holds the value of the bucket when count == 1 */
+  cecs_entity_t value;
+  cecs_entity_t *entities;
+};
+
+/** Number of buckets in an entity set */
+#define N_ENTITY_SET_BUCKETS ((size_t)16384u)
+/** Set of unique entity IDs */
+struct cecs_entity_set {
+  struct entity_set_bucket buckets[N_ENTITY_SET_BUCKETS];
+};
+
+
+/** Minmum number of elements allocated for an entity set bucket */
+#define ENTITY_SET_MIN_BUCKET_SIZE ((size_t)16384u)
+/** Cache the set used to return query result so we don't have to allocate
+ * buckets on every query */
+struct cecs_entity_set query_result_cache;
+
+
+
+#define N_ENTITIES_BY_ARCHETYPE_BUCKETS ((size_t) 16384u)
 /** An archetype is a unique composition of components. */
 struct archetype {
   /** Component signature implemented by this archetype */
   cecs_sig_t sig;
-  /** Number of entities implementing this archetype */
-  size_t count;
-  /** Number of entities able to be stored in the entities array before resizing */
-  size_t cap;
-  /** Array of entities implementing this archetype */
-  /* TODO: Replace entity list with a set for faster lookup */
-  cecs_entity_t *entities;
+  /** Set of entities implementing this archetype */
+  struct entity_set_bucket buckets[N_ENTITIES_BY_ARCHETYPE_BUCKETS];
 };
 
 /** Signature->Archetype to be stored in the sig->archetype map */
@@ -175,30 +196,6 @@ struct archetype_list {
 #define N_ARCHETYPE_BY_SIG_BUCKETS ((size_t)256u)
 /** Map from signature to the archetype it represents */
 struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKETS] = { 0u };
-
-
-/** List of entities in a bucket in the entity set */
-struct cecs_entity_set_bucket {
-  size_t count;
-  size_t cap;
-  /* Holds the value of the bucket when count == 1 */
-  cecs_entity_t value;
-  cecs_entity_t *entities;
-};
-
-/** Number of buckets in an entity set */
-#define N_ENTITY_SET_BUCKETS ((size_t)8192u)
-/** Set of unique entity IDs */
-struct cecs_entity_set {
-  struct cecs_entity_set_bucket buckets[N_ENTITY_SET_BUCKETS];
-};
-
-
-/** Minmum number of elements allocated for an entity set bucket */
-#define ENTITY_SET_MIN_BUCKET_SIZE ((size_t)16384u)
-/** Cache the set used to return query result so we don't have to allocate
- * buckets on every query */
-struct cecs_entity_set query_result_cache;
 
 
 /** Grow the given list to the minimum size if empty, or double its size */
@@ -599,11 +596,15 @@ static struct component_by_id_table *get_component_by_id(const cecs_component_t 
  * entities implementing that archetype */
 static void add_entity_to_archetype(const cecs_entity_t entity, struct archetype *archetype)
 {
-  /* TODO: Replace archetype entity list with a set */
-  /* Don't add duplicates */
-  for (size_t i = 0; i < archetype->count; ++i) {
-    if (archetype->entities[i] == entity) {
-      return;
+  const size_t i_bucket = (size_t)(entity % N_ENTITIES_BY_ARCHETYPE_BUCKETS);
+  struct entity_set_bucket *bucket = &archetype->buckets[i_bucket];
+
+  if (bucket->count > 0u) {
+    /* Don't add duplicates */
+    for (size_t i = 0u; i < bucket->count; ++i) {
+      if (bucket->entities[i] == entity) {
+        return;
+      }
     }
   }
 
@@ -637,7 +638,7 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
     return CECS_ENTITY_INVALID;
   }
 
-  const struct cecs_entity_set_bucket *bucket = &it->set->buckets[it->i_bucket];
+  const struct entity_set_bucket *bucket = &it->set->buckets[it->i_bucket];
   /* If the bucket has one element then its value is in the bucket directly */
   if (bucket->count == 1u) {
     ++it->i_entity;
@@ -683,7 +684,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
     for (size_t i = 0; i < archetype->count; ++i) {
       const cecs_entity_t entity = archetype->entities[i];
       const size_t i_bucket      = (size_t)(entity % N_ENTITY_SET_BUCKETS);
-      struct cecs_entity_set_bucket *bucket = &it->set->buckets[i_bucket];
+      struct entity_set_bucket *bucket = &it->set->buckets[i_bucket];
 
       if (bucket->count == 0u) {
         /* The bucket is empty, the first entity can go in the singulate value
