@@ -141,7 +141,6 @@ struct archetype {
   /** Number of entities able to be stored in the entities array before resizing */
   size_t cap;
   /** Array of entities implementing this archetype */
-  /* TODO: Replace entity list with a set for faster lookup */
   cecs_entity_t *entities;
 };
 
@@ -599,7 +598,6 @@ static struct component_by_id_table *get_component_by_id(const cecs_component_t 
  * entities implementing that archetype */
 static void add_entity_to_archetype(const cecs_entity_t entity, struct archetype *archetype)
 {
-  /* TODO: Replace archetype entity list with a set */
   /* Don't add duplicates */
   for (size_t i = 0; i < archetype->count; ++i) {
     if (archetype->entities[i] == entity) {
