@@ -205,6 +205,10 @@ struct cecs_entity_set {
  * buckets on every query */
 struct cecs_entity_set query_result_cache;
 
+/** Cache the list of archetypes returned by a query so we don't have to
+ * allocate on every query */
+struct archetype_list archetypes_list_cache;
+
 
 /** Grow the given list to the minimum size if empty, or double its size */
 #define GROW_LIST_IF_NEEDED(list, min_size, entries, type)                           \
@@ -228,7 +232,7 @@ struct cecs_entity_set query_result_cache;
 /** Find the entry in list `bucket` whose `identifier` matches `search` and
  * return it in `result` */
 #define FIND_ENTRY_IN_BUCKET(bucket, identifier, search, result) \
-  for (size_t _i = 0; _i < (bucket)->count; ++_i) {              \
+  for (size_t _i = 0u; _i < (bucket)->count; ++_i) {              \
     if ((bucket)->pairs[_i].identifier == (search)) {            \
       (result) = &(bucket)->pairs[_i];                           \
     }                                                            \
@@ -238,7 +242,7 @@ struct cecs_entity_set query_result_cache;
 /** Returns true if the two signatures are equivalent */
 static bool __always_inline sigs_are_equal(const struct signature *lhs, const struct signature *rhs)
 {
-  for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+  for (cecs_component_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     if (lhs->components[i] != rhs->components[i]) {
       return false;
     }
@@ -251,7 +255,7 @@ static bool __always_inline sigs_are_equal(const struct signature *lhs, const st
 /** Returns true if `look_for` is entirely represented by `in` */
 static bool __always_inline sig_is_in(const struct signature *look_for, const struct signature *in)
 {
-  for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+  for (cecs_component_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     if ((look_for->components[i] & in->components[i]) != look_for->components[i]) {
       return false;
     }
@@ -264,7 +268,7 @@ static bool __always_inline sig_is_in(const struct signature *look_for, const st
 /** Return the boolean OR union of the two signatures */
 static void __always_inline sig_union(struct signature *target, const struct signature *with)
 {
-  for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+  for (cecs_component_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     target->components[i] |= with->components[i];
   }
 }
@@ -273,7 +277,7 @@ static void __always_inline sig_union(struct signature *target, const struct sig
 /** Return `target` less all the components in `to_remove` */
 static void __always_inline sig_remove(struct signature *target, const struct signature *to_remove)
 {
-  for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+  for (cecs_component_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     target->components[i] &= ~to_remove->components[i];
   }
 }
@@ -285,7 +289,7 @@ static struct signature components_to_sig(const cecs_component_t n, va_list comp
   struct signature sig;
   memset(&sig, 0u, sizeof(sig));
 
-  for (size_t i = 0; i < n; ++i) {
+  for (size_t i = 0u; i < n; ++i) {
     cecs_component_t id = va_arg(components, cecs_component_t);
     assert(id > 0 && "Component was not registered with CECS_COMPONENT()");
     CECS_ADD_COMPONENT(&sig, id);
@@ -299,12 +303,12 @@ static struct signature components_to_sig(const cecs_component_t n, va_list comp
  * The caller is responsible for freeing the returned list. */
 static struct archetype_list *get_archetypes_by_sig(const struct signature *sig)
 {
-  struct archetype_list *list = malloc(sizeof(struct archetype_list));
-  memset(list, 0u, sizeof(*list));
+  struct archetype_list *list = &archetypes_list_cache;
+  list->count = 0u;
 
-  for (size_t i_bucket = 0; i_bucket < N_ARCHETYPE_BY_SIG_BUCKETS; ++i_bucket) {
+  for (size_t i_bucket = 0u; i_bucket < N_ARCHETYPE_BY_SIG_BUCKETS; ++i_bucket) {
     struct archetype_by_sig_bucket *bucket = &archetypes_by_sig[i_bucket];
-    for (size_t i_entry = 0; i_entry < bucket->count; ++i_entry) {
+    for (size_t i_entry = 0u; i_entry < bucket->count; ++i_entry) {
       struct archetype_by_sig_entry *entry = &bucket->pairs[i_entry];
       if (sig_is_in(sig, &entry->sig)) {
         GROW_LIST_IF_NEEDED(list, ARCHETYPES_LIST_MIN_SIZE, elements, struct archetype *);
@@ -321,14 +325,14 @@ static struct archetype_list *get_archetypes_by_sig(const struct signature *sig)
  * given archetype pointer to the map value */
 static struct archetype *set_archetype_by_sig(const struct signature *sig, const struct archetype *archetype)
 {
-  size_t i_bucket = 0;
-  for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+  size_t i_bucket = 0u;
+  for (size_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     i_bucket ^= (size_t)(sig->components[i] % N_ARCHETYPE_BY_SIG_BUCKETS);
   }
   struct archetype_by_sig_bucket *bucket = &archetypes_by_sig[i_bucket];
 
   /* If entity already exists in bucket, just overwrite its value */
-  for (size_t i = 0; i < bucket->count; ++i) {
+  for (size_t i = 0u; i < bucket->count; ++i) {
     struct archetype_by_sig_entry *entry = &bucket->pairs[i];
     if (sigs_are_equal(&entry->sig, sig)) {
       entry->archetype = *archetype;
@@ -353,13 +357,13 @@ static struct archetype *set_archetype_by_sig(const struct signature *sig, const
 /** Return the archetype implementing the given signature */
 static struct archetype *get_archetype_by_sig(const struct signature *sig)
 {
-  size_t i_bucket = 0;
-  for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+  size_t i_bucket = 0u;
+  for (size_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     i_bucket ^= (size_t)(sig->components[i] % N_ARCHETYPE_BY_SIG_BUCKETS);
   }
   struct archetype_by_sig_bucket *bucket = &archetypes_by_sig[i_bucket];
 
-  for (size_t i = 0; i < bucket->count; ++i) {
+  for (size_t i = 0u; i < bucket->count; ++i) {
     if (sigs_are_equal(&bucket->pairs[i].sig, sig)) {
       return &bucket->pairs[i].archetype;
     }
@@ -393,7 +397,7 @@ static void set_sig_by_entity(const cecs_entity_t entity, struct signature *sig)
   struct sig_by_entity_bucket *bucket = &sigs_by_entity[i_bucket];
 
   /* If entity already exists in bucket, just overwrite its value */
-  for (size_t i = 0; i < bucket->count; ++i) {
+  for (size_t i = 0u; i < bucket->count; ++i) {
     struct sig_by_entity_entry *entry = &bucket->pairs[i];
     if (entry->entity == entity) {
       entry->sig = *sig;
@@ -661,7 +665,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   it->set = &query_result_cache;
 
   /* Clear the previous results from the cached set */
-  for (size_t i = 0; i < N_ENTITY_SET_BUCKETS; ++i) {
+  for (size_t i = 0u; i < N_ENTITY_SET_BUCKETS; ++i) {
     it->set->buckets[i].count = 0u;
   }
 
@@ -672,13 +676,12 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   struct archetype_list *archetypes = get_archetypes_by_sig(&sig);
   if (archetypes->count == 0u) {
     /* There are no entities with this archetype */
-    free(archetypes);
     return 0u;
   }
 
-  for (size_t i_archetype = 0; i_archetype < archetypes->count; ++i_archetype) {
+  for (size_t i_archetype = 0u; i_archetype < archetypes->count; ++i_archetype) {
     struct archetype *archetype = archetypes->elements[i_archetype];
-    for (size_t i = 0; i < archetype->count; ++i) {
+    for (size_t i = 0u; i < archetype->count; ++i) {
       const cecs_entity_t entity = archetype->entities[i];
       const size_t i_bucket      = (size_t)(entity % N_ENTITY_SET_BUCKETS);
       struct cecs_entity_set_bucket *bucket = &it->set->buckets[i_bucket];
@@ -697,7 +700,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
       bool exists = false;
       if (bucket->entities) {
         /* The bucket list is populated, we have to check every single entry */
-        for (size_t j = 0; j < bucket->count; ++j) {
+        for (size_t j = 0u; j < bucket->count; ++j) {
           if (bucket->entities[j] == entity) {
             exists = true;
             break;
@@ -726,8 +729,6 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   }
 
   /* If archetypes->elements didn't exist we'd already be out of here */
-  free(archetypes->elements);
-  free(archetypes);
 
   return n_entities;
 }
@@ -777,7 +778,7 @@ cecs_entity_t _cecs_create(const cecs_component_t n, ...)
 
   /* Add the entity to all the named components */
   va_start(components, n);
-  for (size_t i = 0; i < n; ++i) {
+  for (size_t i = 0u; i < n; ++i) {
     add_entity_to_component(va_arg(components, cecs_component_t), entity);
   }
   va_end(components);
@@ -791,7 +792,7 @@ void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...)
 {
   va_list components;
 
-  struct signature *sig = get_sig_by_entity(entity);
+  struct signature *sig      = get_sig_by_entity(entity);
   struct signature sig_added = *sig;
 
   va_start(components, n);
@@ -812,7 +813,7 @@ void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...)
 
   /* Add the entity to all components named */
   va_start(components, n);
-  for (size_t i = 0; i < n; ++i) {
+  for (size_t i = 0u; i < n; ++i) {
     add_entity_to_component(va_arg(components, cecs_component_t), entity);
   }
   va_end(components);
@@ -825,7 +826,7 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
   va_list components;
 
   /* Get the entity's current signature from the cache */
-  struct signature *sig = get_sig_by_entity(entity);
+  struct signature *sig        = get_sig_by_entity(entity);
   struct signature sig_removed = *sig;
 
   va_start(components, n);
@@ -842,7 +843,7 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
   /* Remove the entity from its current archetype */
   struct archetype *archetype = get_archetype_by_sig(sig);
 
-  for (cecs_entity_t i = 0; i < archetype->count; ++i) {
+  for (cecs_entity_t i = 0u; i < archetype->count; ++i) {
     if (archetype->entities[i] == entity) {
       /* Put the last entity in the array into the removed entity's slot */
       archetype->entities[i] = archetype->entities[--archetype->count];
@@ -857,7 +858,7 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 
   /* Remove the entity from all components named in the list */
   va_start(components, n);
-  for (size_t i = 0; i < n; ++i) {
+  for (size_t i = 0u; i < n; ++i) {
     remove_entity_from_component(va_arg(components, cecs_component_t), entity);
   }
   va_end(components);
@@ -923,7 +924,7 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
   va_list components;
   va_start(components, n);
 
-  for (size_t k = 0; k < n; ++k) {
+  for (size_t k = 0u; k < n; ++k) {
     struct component_by_id_table *entry
       = get_component_by_id(va_arg(components, cecs_component_t));
 
