@@ -121,21 +121,15 @@ struct component_by_id_table {
     struct index_vec free_indices;
 };
 
-/** Vector of ID->component pairs, to be stored in the id->component map */
-struct component_by_id_bucket {
-    size_t count;
-    size_t cap;
-    struct component_by_id_table *pairs;
-};
 
 /** Minimum number of elements allocated for component data by index */
 #define COMPONENT_TABLE_MIN_DATA_SIZE ((size_t)16384u)
 /** Minimum number of elements allocated for a component ID->component map bucket */
-#define COMPONENT_BY_ID_MIN_BUCKET_SIZE ((size_t)8u)
+#define COMPONENT_BY_ID_MIN_BUCKET_SIZE ((size_t)1u)
 /** Number of buckets in the componet ID->data map */
-#define N_COMPONENT_BY_ID_BUCKETS ((size_t)1024u)
+#define N_COMPONENT_BY_ID_BUCKETS ((size_t)(CECS_N_COMPONENTS))
 /** Map from component ID to component data and implementing entities vector */
-struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
+struct component_by_id_table components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
 
 
 /** An archetype is a unique composition of components. */
@@ -437,18 +431,9 @@ static struct signature *get_sig_by_entity(const cecs_entity_t entity)
 static void add_entity_to_component(const cecs_component_t id, const cecs_entity_t entity)
 {
     assert(id > 0 && "Component was not registered with CECS_COMPONENT()");
+    assert(id < CECS_N_COMPONENTS && "Component ID is out of range. Increase CECS_N_COMPONENTS.");
 
-    const size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
-    struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
-
-    struct component_by_id_table *table = NULL;
-    FIND_ENTRY_IN_BUCKET(bucket, id, id, table);
-
-    if (!table) {
-        /* Component ID not found in bucket, */
-        GROW_VEC_IF_NEEDED(bucket, COMPONENT_BY_ID_MIN_BUCKET_SIZE, pairs, struct component_by_id_table);
-        table = &bucket->pairs[bucket->count++];
-    }
+    struct component_by_id_table *table = &components_by_id[(size_t) id];
 
     const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
     struct index_by_entity_bucket *index_bucket = &table->indices_by_entity[i_index_bucket];
@@ -533,17 +518,9 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
 static void remove_entity_from_component(const cecs_component_t id, const cecs_entity_t entity)
 {
     assert(id > 0 && "Component was not registered with CECS_COMPONENT()");
+    assert(id < CECS_N_COMPONENTS && "Component ID is out of range. Increase CECS_N_COMPONENTS.");
 
-    const size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
-    struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
-
-    struct component_by_id_table *component = NULL;
-    FIND_ENTRY_IN_BUCKET(bucket, id, id, component);
-
-    if (!component) {
-        /* Component doesn't exist */
-        return;
-    }
+    struct component_by_id_table *component = &components_by_id[(size_t) id];
 
     const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
     struct index_by_entity_bucket *index_bucket
@@ -597,17 +574,12 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
 
 
 /** Get the component data for the given component ID */
-static struct component_by_id_table *get_component_by_id(const cecs_component_t id)
+static __always_inline struct component_by_id_table *get_component_by_id(const cecs_component_t id)
 {
     assert(id > 0 && "Component was not registered with CECS_COMPONENT()");
+    assert(id < CECS_N_COMPONENTS && "Component ID is out of range. Increase CECS_N_COMPONENTS.");
 
-    size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
-    struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
-
-    struct component_by_id_table *entry = NULL;
-    FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
-
-    return entry;
+    return &components_by_id[(size_t) id];
 }
 
 
@@ -876,21 +848,13 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 /** Register the given component as having the specified size */
 void cecs_register_component(const cecs_component_t id, const size_t size)
 {
-    const size_t i_bucket = (size_t)(id % N_COMPONENT_BY_ID_BUCKETS);
-    struct component_by_id_bucket *bucket = &components_by_id[i_bucket];
+    assert(id < CECS_N_COMPONENTS && "Component ID is out of range. Increase CECS_N_COMPONENTS.");
 
-    struct component_by_id_table *entry = NULL;
-    FIND_ENTRY_IN_BUCKET(bucket, id, id, entry);
-
-    /* If component ID not found in bucket, */
-    if (!entry) {
-        GROW_VEC_IF_NEEDED(bucket, COMPONENT_BY_ID_MIN_BUCKET_SIZE, pairs, struct component_by_id_table);
-        entry = &bucket->pairs[bucket->count++];
-    }
+    struct component_by_id_table *table = &components_by_id[(size_t) id];
 
     /* Populate the component ID and size */
-    entry->id   = id;
-    entry->size = size;
+    table->id   = id;
+    table->size = size;
 }
 
 
