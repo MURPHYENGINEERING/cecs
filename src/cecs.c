@@ -579,7 +579,11 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
   /* Add the removed entity's data index to the free vec */
   component->free_indices.indices[component->free_indices.count++] = index_pair->index;
 
-  if (index_bucket->count > 1u) {
+  if (index_bucket->count == 2u) {
+    /* After decreasing the count of the bucket, move the last element into the
+     * singulate value. */
+    index_bucket->value = index_bucket->pairs[--index_bucket->count];
+  } else if (index_bucket->count > 1u) {
     /* Move the last entry in the bucket into this position, overwriting the
      * removed entity, and decrement the bucket's count */
     memcpy(index_pair, &index_bucket->pairs[--index_bucket->count], sizeof(struct index_by_entity_pair));
