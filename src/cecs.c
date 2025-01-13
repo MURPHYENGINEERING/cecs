@@ -582,7 +582,8 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
   if (index_bucket->count == 2u) {
     /* After decreasing the count of the bucket, move the last element into the
      * singulate value. */
-    index_bucket->value = index_bucket->pairs[--index_bucket->count];
+    index_bucket->value = index_bucket->pairs[0u];
+    index_bucket->count = 1u;
   } else if (index_bucket->count > 1u) {
     /* Move the last entry in the bucket into this position, overwriting the
      * removed entity, and decrement the bucket's count */
