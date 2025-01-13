@@ -491,7 +491,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
     /* No duplicates, found, add entity to component */
     GROW_VEC_IF_NEEDED(index_bucket, INDEX_BY_ENTITY_MIN_BUCKET_SIZE, pairs, struct index_by_entity_pair);
 
-    if (index_bucket->count == 1u) {
+    if (index_bucket->count == 0u) {
       /* Transitioning from 0 to 1 elements. Put the singulate value in the vec */
       index_bucket->pairs[0u] = index_bucket->value;
     }
