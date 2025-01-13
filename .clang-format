@@ -226,7 +226,7 @@ ConstructorInitializerIndentWidth: 0
 
 # ContinuationIndentWidth (unsigned)
 # Indent width for line continuations.
-ContinuationIndentWidth: 2
+ContinuationIndentWidth: 4
 
 # Cpp11BracedListStyle (bool)
 # If true, format braced lists as best suited for C++11 braced lists.

@@ -220,9 +220,9 @@ struct achetype_vec archetypes_vec_cache;
         } else {                                                                        \
             (vec)->entries = realloc((vec)->entries, ((vec)->cap * 2u) * sizeof(type)); \
             memset(                                                                     \
-              ((uint8_t *)(vec)->entries) + (vec)->cap * sizeof(type),                  \
-              0u,                                                                       \
-              (vec)->cap * sizeof(type)                                                 \
+                ((uint8_t *)(vec)->entries) + (vec)->cap * sizeof(type),                \
+                0u,                                                                     \
+                (vec)->cap * sizeof(type)                                               \
             );                                                                          \
             (vec)->cap *= 2u;                                                           \
         }                                                                               \
@@ -519,9 +519,9 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
             assert(table->data && "Out of memory");
 #ifdef CECS_ZERO_COMPONENT_DATA
             memset(
-              ((uint8_t *)table->data) + table->cap * table->size,
-              0u,
-              table->cap * table->size
+                ((uint8_t *)table->data) + table->cap * table->size,
+                0u,
+                table->cap * table->size
             );
 #endif
             table->cap *= 2u;
@@ -547,7 +547,7 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
 
     const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
     struct index_by_entity_bucket *index_bucket
-      = &component->indices_by_entity[i_index_bucket];
+        = &component->indices_by_entity[i_index_bucket];
 
     if (index_bucket->count == 0u) {
         /* Component doesn't belong to any entities */
@@ -578,7 +578,7 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
     GROW_VEC_IF_NEEDED(&component->free_indices, 32u, indices, size_t);
     /* Add the removed entity's data index to the free vector */
     component->free_indices.indices[component->free_indices.count++]
-      = index_pair->index;
+        = index_pair->index;
 
     if (index_bucket->count == 2u) {
         /* After decreasing the count of the bucket, move the last element into
@@ -749,7 +749,7 @@ void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
 
     const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
     struct index_by_entity_bucket *index_bucket
-      = &component->indices_by_entity[i_index_bucket];
+        = &component->indices_by_entity[i_index_bucket];
 
     struct index_by_entity_pair *index_by_entity = NULL;
     if (index_bucket->count == 1u) {
@@ -904,10 +904,12 @@ bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data
 
     struct index_by_entity_pair *index_by_entity = NULL;
     if (index_bucket->count == 1u) {
+        /* Only one entry in bucket, search the singulate value */
         if (index_bucket->value.entity == entity) {
             index_by_entity = &index_bucket->value;
         }
     } else {
+        /* More than one entry in bucket, search the vector */
         FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
     }
 
@@ -917,9 +919,9 @@ bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data
     }
 
     memcpy(
-      ((uint8_t *)entry->data) + (index_by_entity->index * entry->size),
-      data,
-      entry->size
+        ((uint8_t *)entry->data) + (index_by_entity->index * entry->size),
+        data,
+        entry->size
     );
 
     return true;
@@ -936,18 +938,20 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
 
     for (size_t k = 0u; k < n; ++k) {
         struct component_by_id_table *entry
-          = get_component_by_id(va_arg(components, cecs_component_t));
+            = get_component_by_id(va_arg(components, cecs_component_t));
 
         const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
         struct index_by_entity_bucket *index_bucket
-          = &entry->indices_by_entity[i_index_bucket];
+            = &entry->indices_by_entity[i_index_bucket];
 
         struct index_by_entity_pair *index_by_entity = NULL;
         if (index_bucket->count == 1u) {
+            /* Only one entry in bucket, search the singulate value */
             if (index_bucket->value.entity == entity) {
                 index_by_entity = &index_bucket->value;
             }
         } else {
+            /* More than one entry in bucket, search the vector */
             FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
         }
 
@@ -957,9 +961,9 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
         }
 
         memset(
-          ((uint8_t *)entry->data) + (index_by_entity->index * entry->size),
-          0u,
-          entry->size
+            ((uint8_t *)entry->data) + (index_by_entity->index * entry->size),
+            0u,
+            entry->size
         );
         changed = true;
     }
