@@ -604,13 +604,6 @@ static struct component_by_id_table *get_component_by_id(const cecs_component_t 
  * entities implementing that archetype */
 static void add_entity_to_archetype(const cecs_entity_t entity, struct archetype *archetype)
 {
-  /* Don't add duplicates */
-  for (size_t i = 0; i < archetype->count; ++i) {
-    if (archetype->entities[i] == entity) {
-      return;
-    }
-  }
-
   GROW_LIST_IF_NEEDED(archetype, ARCHETYPE_ENTITIES_LIST_MIN_SIZE, entities, sizeof(cecs_entity_t));
 
   archetype->entities[archetype->count++] = entity;
@@ -625,6 +618,7 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
     return CECS_ENTITY_INVALID;
   }
 
+  const struct cecs_entity_set_bucket *bucket = &it->set->buckets[it->i_bucket];
   if (it->i_entity >= it->set->buckets[it->i_bucket].count) {
     /* Skip empty buckets until we reach a non-empty one or the end of the set */
     while ((++it->i_bucket < N_ENTITY_SET_BUCKETS)
@@ -641,14 +635,14 @@ cecs_entity_t cecs_iter_next(cecs_iter_t *it)
     return CECS_ENTITY_INVALID;
   }
 
-  const struct cecs_entity_set_bucket *bucket = &it->set->buckets[it->i_bucket];
+  bucket = &it->set->buckets[it->i_bucket];
   /* If the bucket has one element then its value is in the bucket directly */
   if (bucket->count == 1u) {
     ++it->i_entity;
     return bucket->value;
   } else {
     /* Iterate the bucket */
-    return it->set->buckets[it->i_bucket].entities[it->i_entity++];
+    return bucket->entities[it->i_entity++];
   }
 }
 
@@ -798,17 +792,23 @@ void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...)
   va_list components;
 
   struct signature *sig = get_sig_by_entity(entity);
+  struct signature sig_added = *sig;
 
   va_start(components, n);
   struct signature sig_to_add = components_to_sig(n, components);
   va_end(components);
 
-  sig_union(sig, &sig_to_add);
+  sig_union(&sig_added, &sig_to_add);
+
+  if (sigs_are_equal(&sig_added, sig)) {
+    /* Nothing to do */
+    return;
+  }
 
   /* Add the entity to its new archetype */
-  add_entity_to_archetype(entity, get_or_add_archetype_by_sig(sig));
+  add_entity_to_archetype(entity, get_or_add_archetype_by_sig(&sig_added));
   /* Update the cached signature for this entity */
-  set_sig_by_entity(entity, sig);
+  set_sig_by_entity(entity, &sig_added);
 
   /* Add the entity to all components named */
   va_start(components, n);
@@ -826,10 +826,22 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 
   /* Get the entity's current signature from the cache */
   struct signature *sig = get_sig_by_entity(entity);
+  struct signature sig_removed = *sig;
+
+  va_start(components, n);
+  struct signature sig_to_remove = components_to_sig(n, components);
+  va_end(components);
+
+  sig_remove(&sig_removed, &sig_to_remove);
+
+  if (sigs_are_equal(&sig_removed, sig)) {
+    /* Nothing to do */
+    return;
+  }
 
   /* Remove the entity from its current archetype */
   struct archetype *archetype = get_archetype_by_sig(sig);
-  /* TOOD: Replace archetype entity list with a set */
+
   for (cecs_entity_t i = 0; i < archetype->count; ++i) {
     if (archetype->entities[i] == entity) {
       /* Put the last entity in the array into the removed entity's slot */
@@ -838,16 +850,10 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
     }
   }
 
-  va_start(components, n);
-  struct signature sig_to_remove = components_to_sig(n, components);
-  va_end(components);
-
-  sig_remove(sig, &sig_to_remove);
-
   /* Add the entity to its new archetype */
-  add_entity_to_archetype(entity, get_or_add_archetype_by_sig(sig));
+  add_entity_to_archetype(entity, get_or_add_archetype_by_sig(&sig_removed));
   /* Cache the entity's new signature */
-  set_sig_by_entity(entity, sig);
+  set_sig_by_entity(entity, &sig_removed);
 
   /* Remove the entity from all components named in the list */
   va_start(components, n);
@@ -915,8 +921,8 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
   bool changed = false;
 
   va_list components;
-
   va_start(components, n);
+
   for (size_t k = 0; k < n; ++k) {
     struct component_by_id_table *entry
       = get_component_by_id(va_arg(components, cecs_component_t));
