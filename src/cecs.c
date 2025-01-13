@@ -509,7 +509,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
             table->cap  = COMPONENT_TABLE_MIN_DATA_SIZE;
             table->data = realloc(table->data, table->cap * table->size);
             assert(table->data && "Out of memory");
-#ifdef CECS_ZERO_COMPONENT_DATA
+#ifdef CECS_ZERO_NEW_COMPONENT_DATA
             memset(table->data, 0u, table->cap * table->size);
 #endif
 
@@ -517,7 +517,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
             /* Double the size and zero out the new data capacity */
             table->data = realloc(table->data, table->cap * 2u * table->size);
             assert(table->data && "Out of memory");
-#ifdef CECS_ZERO_COMPONENT_DATA
+#ifdef CECS_ZERO_NEW_COMPONENT_DATA
             memset(
                 ((uint8_t *)table->data) + table->cap * table->size,
                 0u,
