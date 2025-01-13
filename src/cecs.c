@@ -939,7 +939,7 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
 
     struct index_by_entity_pair *index_by_entity = NULL;
     if (index_bucket->count == 1u) {
-      index_by_entity = &index_bucket->pairs[0u];
+      index_by_entity = &index_bucket->value;
     } else {
       FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
     }
