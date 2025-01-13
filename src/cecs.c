@@ -660,10 +660,11 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   va_list components;
   cecs_entity_t n_entities = 0u;
 
-  memset(it, 0u, sizeof(*it));
-
   /* Use a prebuilt set so we aren't allocating set vectors on every query */
   it->set = &query_result_cache;
+  /* Zero out the iterator */
+  it->i_bucket = 0u;
+  it->i_entity = 0u;
 
   /* Clear the previous results from the cached set */
   for (size_t i = 0u; i < N_ENTITY_SET_BUCKETS; ++i) {
