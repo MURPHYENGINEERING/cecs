@@ -192,7 +192,7 @@ struct cecs_entity_set_bucket {
 };
 
 /** Number of buckets in an entity set */
-#define N_ENTITY_SET_BUCKETS ((size_t)8192u)
+#define N_ENTITY_SET_BUCKETS ((size_t)16384u)
 /** Set of unique entity IDs */
 struct cecs_entity_set {
   struct cecs_entity_set_bucket buckets[N_ENTITY_SET_BUCKETS];
@@ -200,7 +200,7 @@ struct cecs_entity_set {
 
 
 /** Minmum number of elements allocated for an entity set bucket */
-#define ENTITY_SET_MIN_BUCKET_SIZE ((size_t)16384u)
+#define ENTITY_SET_MIN_BUCKET_SIZE ((size_t)8u)
 /** Cache the set used to return query result so we don't have to allocate
  * buckets on every query */
 struct cecs_entity_set query_result_cache;
@@ -694,6 +694,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
          * instead of allocating a list */
         bucket->value = entity;
         bucket->count = 1u;
+        ++n_entities;
         /* Next entity in archetype */
         continue;
       }
