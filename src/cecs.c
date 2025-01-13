@@ -110,7 +110,7 @@ struct index_by_entity_bucket {
 #define N_INDICES_BY_ENTITY_BUCKETS ((size_t)16384u)
 
 
-/** ID->component data and entity list pairs */
+/** ID->component data and entity vec pairs */
 struct component_by_id_table {
   cecs_component_t id;
   size_t size;
@@ -134,7 +134,7 @@ struct component_by_id_bucket {
 #define COMPONENT_BY_ID_MIN_BUCKET_SIZE ((size_t)8u)
 /** Number of buckets in the componet ID->data map */
 #define N_COMPONENT_BY_ID_BUCKETS ((size_t)1024u)
-/** Map from component ID to component data and implementing entities list */
+/** Map from component ID to component data and implementing entities vec */
 struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
 
 
@@ -164,16 +164,16 @@ struct archetype_by_sig_bucket {
 };
 
 /** List of pointers to archetypes, which are stored in the sig->archetype map */
-struct archetype_list {
+struct achetype_vec {
   size_t count;
   size_t cap;
   struct archetype **elements;
 };
 
-/** Minimum number of elements to allocate for an entity list for a given archetype */
-#define ARCHETYPE_ENTITIES_LIST_MIN_SIZE ((size_t)16384u)
-/** Minimum number of elements allocated for a list of archetypes */
-#define ARCHETYPES_LIST_MIN_SIZE ((size_t)32u)
+/** Minimum number of elements to allocate for an entity vec for a given archetype */
+#define ARCHETYPE_ENTITIES_VEC_MIN_SIZE ((size_t)16384u)
+/** Minimum number of elements allocated for a vec of archetypes */
+#define ARCHETYPES_VEC_MIN_SIZE ((size_t)32u)
 /** Minimum number of elements allocated for a signature->archetype map bucket */
 #define ARCHETYPES_BY_SIG_MIN_BUCKET_SIZE ((size_t)32u)
 /** Number of buckets in the signature->archetype map */
@@ -205,31 +205,31 @@ struct cecs_entity_set {
  * buckets on every query */
 struct cecs_entity_set query_result_cache;
 
-/** Cache the list of archetypes returned by a query so we don't have to
+/** Cache the vec of archetypes returned by a query so we don't have to
  * allocate on every query */
-struct archetype_list archetypes_list_cache;
+struct achetype_vec archetypes_list_cache;
 
 
-/** Grow the given list to the minimum size if empty, or double its size */
-#define GROW_LIST_IF_NEEDED(list, min_size, entries, type)                           \
-  if ((list)->count >= (list)->cap) {                                                \
-    if ((list)->cap == 0u) {                                                         \
-      (list)->cap     = (min_size);                                                  \
-      (list)->entries = realloc((list)->entries, (list)->cap * sizeof(type));        \
-      memset((uint8_t *)(list)->entries, 0u, (list)->cap * sizeof(type));            \
+/** Grow the given vec to the minimum size if empty, or double its size */
+#define GROW_VEC_IF_NEEDED(vec, min_size, entries, type)                           \
+  if ((vec)->count >= (vec)->cap) {                                                \
+    if ((vec)->cap == 0u) {                                                         \
+      (vec)->cap     = (min_size);                                                  \
+      (vec)->entries = realloc((vec)->entries, (vec)->cap * sizeof(type));        \
+      memset((uint8_t *)(vec)->entries, 0u, (vec)->cap * sizeof(type));            \
     } else {                                                                         \
-      (list)->entries = realloc((list)->entries, ((list)->cap * 2u) * sizeof(type)); \
+      (vec)->entries = realloc((vec)->entries, ((vec)->cap * 2u) * sizeof(type)); \
       memset(                                                                        \
-        ((uint8_t *)(list)->entries) + (list)->cap * sizeof(type),                   \
+        ((uint8_t *)(vec)->entries) + (vec)->cap * sizeof(type),                   \
         0u,                                                                          \
-        (list)->cap * sizeof(type)                                                   \
+        (vec)->cap * sizeof(type)                                                   \
       );                                                                             \
-      (list)->cap *= 2u;                                                             \
+      (vec)->cap *= 2u;                                                             \
     }                                                                                \
   }
 
 
-/** Find the entry in list `bucket` whose `identifier` matches `search` and
+/** Find the entry in vec `bucket` whose `identifier` matches `search` and
  * return it in `result` */
 #define FIND_ENTRY_IN_BUCKET(bucket, identifier, search, result) \
   for (size_t _i = 0u; _i < (bucket)->count; ++_i) {              \
@@ -283,7 +283,7 @@ static void __always_inline sig_remove(struct signature *target, const struct si
 }
 
 
-/** Generate a signature reprensenting all the components in the given list */
+/** Generate a signature reprensenting all the components in the given vec */
 static struct signature components_to_sig(const cecs_component_t n, va_list components)
 {
   struct signature sig;
@@ -300,25 +300,25 @@ static struct signature components_to_sig(const cecs_component_t n, va_list comp
 
 
 /** Get all the archetypes that contain the given signature.
- * The caller is responsible for freeing the returned list. */
-static struct archetype_list *get_archetypes_by_sig(const struct signature *sig)
+ * The caller is responsible for freeing the returned vec. */
+static struct achetype_vec *get_archetypes_by_sig(const struct signature *sig)
 {
-  struct archetype_list *list = &archetypes_list_cache;
+  struct achetype_vec *vec = &archetypes_list_cache;
   /* Clear previous results */
-  list->count = 0u;
+  vec->count = 0u;
 
   for (size_t i_bucket = 0u; i_bucket < N_ARCHETYPE_BY_SIG_BUCKETS; ++i_bucket) {
     struct archetype_by_sig_bucket *bucket = &archetypes_by_sig[i_bucket];
     for (size_t i_entry = 0u; i_entry < bucket->count; ++i_entry) {
       struct archetype_by_sig_entry *entry = &bucket->pairs[i_entry];
       if (sig_is_in(sig, &entry->sig)) {
-        GROW_LIST_IF_NEEDED(list, ARCHETYPES_LIST_MIN_SIZE, elements, struct archetype *);
-        list->elements[list->count++] = &entry->archetype;
+        GROW_VEC_IF_NEEDED(vec, ARCHETYPES_VEC_MIN_SIZE, elements, struct archetype *);
+        vec->elements[vec->count++] = &entry->archetype;
       }
     }
   }
 
-  return list;
+  return vec;
 }
 
 
@@ -343,7 +343,7 @@ static struct archetype *set_archetype_by_sig(const struct signature *sig, const
 
   /* Entity wasn't found in bucket. Check if we need to expand the bucket first
    */
-  GROW_LIST_IF_NEEDED(bucket, ARCHETYPES_BY_SIG_MIN_BUCKET_SIZE, pairs, struct archetype_by_sig_entry);
+  GROW_VEC_IF_NEEDED(bucket, ARCHETYPES_BY_SIG_MIN_BUCKET_SIZE, pairs, struct archetype_by_sig_entry);
 
   /* Add a new entry to the bucket */
   struct archetype_by_sig_entry *entry = &bucket->pairs[bucket->count++];
@@ -407,7 +407,7 @@ static void set_sig_by_entity(const cecs_entity_t entity, struct signature *sig)
   }
 
   /* Entity wasn't found in bucket; add a new entry to the bucket bucket */
-  GROW_LIST_IF_NEEDED(bucket, SIG_BY_ENTITY_MIN_BUCKET_SIZE, pairs, struct sig_by_entity_entry);
+  GROW_VEC_IF_NEEDED(bucket, SIG_BY_ENTITY_MIN_BUCKET_SIZE, pairs, struct sig_by_entity_entry);
   struct sig_by_entity_entry *entry = &bucket->pairs[bucket->count++];
 
   entry->entity = entity;
@@ -446,7 +446,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
 
   if (!table) {
     /* Component ID not found in bucket, */
-    GROW_LIST_IF_NEEDED(bucket, COMPONENT_BY_ID_MIN_BUCKET_SIZE, pairs, struct component_by_id_table);
+    GROW_VEC_IF_NEEDED(bucket, COMPONENT_BY_ID_MIN_BUCKET_SIZE, pairs, struct component_by_id_table);
     table = &bucket->pairs[bucket->count++];
   }
 
@@ -474,14 +474,14 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
   } else {
     struct index_by_entity_pair *index_pair = NULL;
     if (index_bucket->pairs) {
-      /* Bucket list is already allocated, check it for duplicates */
+      /* Bucket vec is already allocated, check it for duplicates */
       FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_pair);
       /* Don't allow duplicates */
       if (index_pair) {
         return;
       }
     } else {
-      /* Bucket list is not yet allocated, check if the singulate value is a
+      /* Bucket vec is not yet allocated, check if the singulate value is a
        * duplicate */
       if (index_bucket->value.entity == entity) {
         return;
@@ -489,10 +489,10 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
     }
 
     /* No duplicates, found, add entity to component */
-    GROW_LIST_IF_NEEDED(index_bucket, INDEX_BY_ENTITY_MIN_BUCKET_SIZE, pairs, struct index_by_entity_pair);
+    GROW_VEC_IF_NEEDED(index_bucket, INDEX_BY_ENTITY_MIN_BUCKET_SIZE, pairs, struct index_by_entity_pair);
 
     if (index_bucket->count == 1u) {
-      /* Transitioning from 0 to 1 elements. Put the singulate value in the list */
+      /* Transitioning from 0 to 1 elements. Put the singulate value in the vec */
       index_bucket->pairs[0u] = index_bucket->value;
     }
 
@@ -566,7 +566,7 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
   }
 
   struct index_by_entity_pair *index_pair = NULL;
-  /* Component bucket has entity list, search it for the entity */
+  /* Component bucket has entity vec, search it for the entity */
   FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_pair);
 
   if (!index_pair) {
@@ -574,9 +574,9 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
     return;
   }
 
-  /* Grow the free indices list if needed */
-  GROW_LIST_IF_NEEDED(&component->free_indices, 32u, indices, size_t);
-  /* Add the removed entity's data index to the free list */
+  /* Grow the free indices vec if needed */
+  GROW_VEC_IF_NEEDED(&component->free_indices, 32u, indices, size_t);
+  /* Add the removed entity's data index to the free vec */
   component->free_indices.indices[component->free_indices.count++] = index_pair->index;
 
   if (index_bucket->count > 1u) {
@@ -609,7 +609,7 @@ static struct component_by_id_table *get_component_by_id(const cecs_component_t 
  * entities implementing that archetype */
 static void add_entity_to_archetype(const cecs_entity_t entity, struct archetype *archetype)
 {
-  GROW_LIST_IF_NEEDED(archetype, ARCHETYPE_ENTITIES_LIST_MIN_SIZE, entities, sizeof(cecs_entity_t));
+  GROW_VEC_IF_NEEDED(archetype, ARCHETYPE_ENTITIES_VEC_MIN_SIZE, entities, sizeof(cecs_entity_t));
 
   archetype->entities[archetype->count++] = entity;
 }
@@ -674,7 +674,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   struct signature sig = components_to_sig(n, components);
   va_end(components);
 
-  struct archetype_list *archetypes = get_archetypes_by_sig(&sig);
+  struct achetype_vec *archetypes = get_archetypes_by_sig(&sig);
   if (archetypes->count == 0u) {
     /* There are no entities with this archetype */
     return 0u;
@@ -689,7 +689,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
 
       if (bucket->count == 0u) {
         /* The bucket is empty, the first entity can go in the singulate value
-         * instead of allocating a list */
+         * instead of allocating a vec */
         bucket->value = entity;
         bucket->count = 1u;
         ++n_entities;
@@ -700,7 +700,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
       /* Check for duplicates */
       bool exists = false;
       if (bucket->entities) {
-        /* The bucket list is populated, we have to check every single entry */
+        /* The bucket vec is populated, we have to check every single entry */
         for (size_t j = 0u; j < bucket->count; ++j) {
           if (bucket->entities[j] == entity) {
             exists = true;
@@ -708,7 +708,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
           }
         }
       } else {
-        /* Bucket list is not populated */
+        /* Bucket vec is not populated */
         exists = bucket->value == entity;
       }
       if (exists) {
@@ -716,10 +716,10 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
         continue;
       }
 
-      GROW_LIST_IF_NEEDED(bucket, ENTITY_SET_MIN_BUCKET_SIZE, entities, cecs_entity_t);
+      GROW_VEC_IF_NEEDED(bucket, ENTITY_SET_MIN_BUCKET_SIZE, entities, cecs_entity_t);
       if (bucket->count == 1u) {
         /* We're transitioning from 1 element to 2 elements, move the
-         * singulate value to the list */
+         * singulate value to the vec */
         bucket->entities[0u] = bucket->value;
       }
       /* Add an entry to the end of the bucket and increase the count */
@@ -857,7 +857,7 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
   /* Cache the entity's new signature */
   set_sig_by_entity(entity, &sig_removed);
 
-  /* Remove the entity from all components named in the list */
+  /* Remove the entity from all components named in the vec */
   va_start(components, n);
   for (size_t i = 0u; i < n; ++i) {
     remove_entity_from_component(va_arg(components, cecs_component_t), entity);
@@ -877,7 +877,7 @@ void cecs_register_component(const cecs_component_t id, const size_t size)
 
   /* If component ID not found in bucket, */
   if (!entry) {
-    GROW_LIST_IF_NEEDED(bucket, COMPONENT_BY_ID_MIN_BUCKET_SIZE, pairs, struct component_by_id_table);
+    GROW_VEC_IF_NEEDED(bucket, COMPONENT_BY_ID_MIN_BUCKET_SIZE, pairs, struct component_by_id_table);
     entry = &bucket->pairs[bucket->count++];
   }
 
