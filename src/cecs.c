@@ -304,6 +304,7 @@ static struct signature components_to_sig(const cecs_component_t n, va_list comp
 static struct archetype_list *get_archetypes_by_sig(const struct signature *sig)
 {
   struct archetype_list *list = &archetypes_list_cache;
+  /* Clear previous results */
   list->count = 0u;
 
   for (size_t i_bucket = 0u; i_bucket < N_ARCHETYPE_BY_SIG_BUCKETS; ++i_bucket) {
