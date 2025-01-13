@@ -430,10 +430,7 @@ static struct signature *get_sig_by_entity(const cecs_entity_t entity)
 /** Add a block of component data for the given entity */
 static void add_entity_to_component(const cecs_component_t id, const cecs_entity_t entity)
 {
-    assert(id > 0 && "Component was not registered with CECS_COMPONENT()");
-    assert(id < CECS_N_COMPONENTS && "Component ID is out of range. Increase CECS_N_COMPONENTS.");
-
-    struct component_by_id *component = &components_by_id[(size_t) id];
+    struct component_by_id *component = get_component_by_id(id);
 
     const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
     struct index_by_entity_bucket *index_bucket = &component->indices_by_entity[i_index_bucket];
@@ -517,10 +514,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
 
 static void remove_entity_from_component(const cecs_component_t id, const cecs_entity_t entity)
 {
-    assert(id > 0 && "Component was not registered with CECS_COMPONENT()");
-    assert(id < CECS_N_COMPONENTS && "Component ID is out of range. Increase CECS_N_COMPONENTS.");
-
-    struct component_by_id *component = &components_by_id[(size_t) id];
+    struct component_by_id *component = get_component_by_id(id);
 
     const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
     struct index_by_entity_bucket *index_bucket
@@ -848,9 +842,7 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 /** Register the given component as having the specified size */
 void cecs_register_component(const cecs_component_t id, const size_t size)
 {
-    assert(id < CECS_N_COMPONENTS && "Component ID is out of range. Increase CECS_N_COMPONENTS.");
-
-    struct component_by_id *component = &components_by_id[(size_t) id];
+    struct component_by_id *component = get_component_by_id(id);
 
     /* Populate the component ID and size */
     component->id   = id;
@@ -861,10 +853,10 @@ void cecs_register_component(const cecs_component_t id, const size_t size)
 /** Populate the component data for the given entity, component pair */
 bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data)
 {
-    struct component_by_id *entry = get_component_by_id(id);
+    struct component_by_id *component = get_component_by_id(id);
 
     const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
-    struct index_by_entity_bucket *index_bucket = &entry->indices_by_entity[i_index_bucket];
+    struct index_by_entity_bucket *index_bucket = &component->indices_by_entity[i_index_bucket];
 
     struct index_by_entity_pair *index_by_entity = NULL;
     if (index_bucket->count == 1u) {
@@ -883,9 +875,9 @@ bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data
     }
 
     memcpy(
-        ((uint8_t *)entry->data) + (index_by_entity->index * entry->size),
+        ((uint8_t *)component->data) + (index_by_entity->index * component->size),
         data,
-        entry->size
+        component->size
     );
 
     return true;
@@ -901,7 +893,7 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
     va_start(components, n);
 
     for (size_t k = 0u; k < n; ++k) {
-        struct component_by_id *entry
+        struct component_by_id *component
             = get_component_by_id(va_arg(components, cecs_component_t));
 
         const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
@@ -925,9 +917,9 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
         }
 
         memset(
-            ((uint8_t *)entry->data) + (index_by_entity->index * entry->size),
+            ((uint8_t *)component->data) + (index_by_entity->index * component->size),
             0u,
-            entry->size
+            component->size
         );
         changed = true;
     }
