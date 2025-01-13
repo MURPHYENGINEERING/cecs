@@ -899,7 +899,9 @@ bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data
 
   struct index_by_entity_pair *index_by_entity = NULL;
   if (index_bucket->count == 1u) {
-    index_by_entity = &index_bucket->value;
+    if (index_bucket->value.entity == entity) {
+      index_by_entity = &index_bucket->value;
+    }
   } else {
     FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
   }
@@ -936,7 +938,9 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
 
     struct index_by_entity_pair *index_by_entity = NULL;
     if (index_bucket->count == 1u) {
-      index_by_entity = &index_bucket->value;
+      if (index_bucket->value.entity == entity) {
+        index_by_entity = &index_bucket->value;
+      }
     } else {
       FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
     }
