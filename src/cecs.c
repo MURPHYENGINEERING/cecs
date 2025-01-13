@@ -58,7 +58,7 @@ struct sig_by_entity_entry {
 };
 
 
-/** List of entity->signature pairs */
+/** Vector of entity->signature pairs */
 struct sig_by_entity_bucket {
   size_t count;
   size_t cap;
@@ -73,16 +73,16 @@ struct sig_by_entity_bucket {
 struct sig_by_entity_bucket sigs_by_entity[N_SIG_BY_ENTITY_BUCKETS] = { 0u };
 
 
-/** List of entity IDs */
-struct entity_list {
+/** Vector of entity IDs */
+struct entity_vec {
   size_t count;
   size_t cap;
   cecs_entity_t *entities;
 };
 
 
-/** List of free indices to be used when adding new entities to components */
-struct index_list {
+/** Vector of free indices to be used when adding new entities to components */
+struct index_vec {
   size_t count;
   size_t cap;
   size_t *indices;
@@ -95,7 +95,7 @@ struct index_by_entity_pair {
   size_t index;
 };
 
-/** List of entity ID->index pairs */
+/** Vector of entity ID->index pairs */
 struct index_by_entity_bucket {
   size_t count;
   size_t cap;
@@ -118,10 +118,10 @@ struct component_by_id_table {
   size_t cap;
   size_t count;
   struct index_by_entity_bucket indices_by_entity[N_INDICES_BY_ENTITY_BUCKETS];
-  struct index_list free_indices;
+  struct index_vec free_indices;
 };
 
-/** List of ID->component pairs, to be stored in the id->component map */
+/** Vector of ID->component pairs, to be stored in the id->component map */
 struct component_by_id_bucket {
   size_t count;
   size_t cap;
@@ -156,14 +156,14 @@ struct archetype_by_sig_entry {
   struct archetype archetype;
 };
 
-/** List of signature->archetype pairs, to be stored in the sig->archetype map */
+/** Vector of signature->archetype pairs, to be stored in the sig->archetype map */
 struct archetype_by_sig_bucket {
   size_t count;
   size_t cap;
   struct archetype_by_sig_entry *pairs;
 };
 
-/** List of pointers to archetypes, which are stored in the sig->archetype map */
+/** Vector of pointers to archetypes, which are stored in the sig->archetype map */
 struct achetype_vec {
   size_t count;
   size_t cap;
@@ -182,7 +182,7 @@ struct achetype_vec {
 struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKETS] = { 0u };
 
 
-/** List of entities in a bucket in the entity set */
+/** Vector of entities in a bucket in the entity set */
 struct cecs_entity_set_bucket {
   size_t count;
   size_t cap;
@@ -207,7 +207,7 @@ struct cecs_entity_set query_result_cache;
 
 /** Cache the vec of archetypes returned by a query so we don't have to
  * allocate on every query */
-struct achetype_vec archetypes_list_cache;
+struct achetype_vec archetypes_vec_cache;
 
 
 /** Grow the given vec to the minimum size if empty, or double its size */
@@ -303,7 +303,7 @@ static struct signature components_to_sig(const cecs_component_t n, va_list comp
  * The caller is responsible for freeing the returned vec. */
 static struct achetype_vec *get_archetypes_by_sig(const struct signature *sig)
 {
-  struct achetype_vec *vec = &archetypes_list_cache;
+  struct achetype_vec *vec = &archetypes_vec_cache;
   /* Clear previous results */
   vec->count = 0u;
 
@@ -662,7 +662,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
 
   memset(it, 0u, sizeof(*it));
 
-  /* Use a prebuilt set so we aren't allocating set lists on every query */
+  /* Use a prebuilt set so we aren't allocating set vectors on every query */
   it->set = &query_result_cache;
 
   /* Clear the previous results from the cached set */
