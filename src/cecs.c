@@ -211,28 +211,24 @@ struct achetype_vec archetypes_vec_cache;
 
 
 /** Grow the given vector to the minimum size if empty, or double its size */
-#define GROW_VEC_IF_NEEDED(vec, min_size, entries, type)                           \
-  if ((vec)->count >= (vec)->cap) {                                                \
-    if ((vec)->cap == 0u) {                                                         \
-      (vec)->cap     = (min_size);                                                  \
-      (vec)->entries = realloc((vec)->entries, (vec)->cap * sizeof(type));        \
-      memset((uint8_t *)(vec)->entries, 0u, (vec)->cap * sizeof(type));            \
-    } else {                                                                         \
-      (vec)->entries = realloc((vec)->entries, ((vec)->cap * 2u) * sizeof(type)); \
-      memset(                                                                        \
-        ((uint8_t *)(vec)->entries) + (vec)->cap * sizeof(type),                   \
-        0u,                                                                          \
-        (vec)->cap * sizeof(type)                                                   \
-      );                                                                             \
-      (vec)->cap *= 2u;                                                             \
-    }                                                                                \
+#define GROW_VEC_IF_NEEDED(vec, min_size, entries, type)                                              \
+  if ((vec)->count >= (vec)->cap) {                                                                   \
+    if ((vec)->cap == 0u) {                                                                           \
+      (vec)->cap     = (min_size);                                                                    \
+      (vec)->entries = realloc((vec)->entries, (vec)->cap * sizeof(type));                            \
+      memset((uint8_t *)(vec)->entries, 0u, (vec)->cap * sizeof(type));                               \
+    } else {                                                                                          \
+      (vec)->entries = realloc((vec)->entries, ((vec)->cap * 2u) * sizeof(type));                     \
+      memset(((uint8_t *)(vec)->entries) + (vec)->cap * sizeof(type), 0u, (vec)->cap * sizeof(type)); \
+      (vec)->cap *= 2u;                                                                               \
+    }                                                                                                 \
   }
 
 
 /** Find the entry in vector `bucket` whose `identifier` matches `search` and
  * return it in `result` */
 #define FIND_ENTRY_IN_BUCKET(bucket, identifier, search, result) \
-  for (size_t _i = 0u; _i < (bucket)->count; ++_i) {              \
+  for (size_t _i = 0u; _i < (bucket)->count; ++_i) {             \
     if ((bucket)->pairs[_i].identifier == (search)) {            \
       (result) = &(bucket)->pairs[_i];                           \
     }                                                            \
@@ -909,7 +905,7 @@ bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data
   }
 
   if (!index_by_entity) {
-    /* Entity doesn't have component, there isn't even a bucket for it */
+    /* Entity doesn't have component */
     return false;
   }
 
@@ -946,7 +942,7 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
     }
 
     if (!index_by_entity) {
-      /* Entity doesn't have component, there isn't even a bucket for it */
+      /* Entity doesn't have component */
       continue;
     }
 
