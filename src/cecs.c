@@ -8,7 +8,7 @@
 #include <cecs/cecs.h>
 
 
-#define __always_inline __attribute__((__always_inline__))
+#define __always_inline __attribute__((__always_inline__)) inline
 
 
 /** Convert a component ID to the LSB into the appropriate index into the
@@ -45,10 +45,16 @@ cecs_component_t CECS_NEXT_COMPONENT_ID = (cecs_component_t)1u;
 cecs_entity_t g_next_entity = CECS_ENTITY_INVALID + 1u;
 
 
+/** A signature represents the components implemented by a type as a bit set. */
+struct signature {
+  cecs_component_t components[CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS)];
+};
+
+
 /** entity->signature pair */
 struct sig_by_entity_entry {
   cecs_entity_t entity;
-  cecs_sig_t sig;
+  struct signature sig;
 };
 
 
@@ -135,7 +141,7 @@ struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u
 /** An archetype is a unique composition of components. */
 struct archetype {
   /** Component signature implemented by this archetype */
-  cecs_sig_t sig;
+  struct signature sig;
   /** Number of entities implementing this archetype */
   size_t count;
   /** Number of entities able to be stored in the entities array before resizing */
@@ -146,7 +152,7 @@ struct archetype {
 
 /** Signature->Archetype to be stored in the sig->archetype map */
 struct archetype_by_sig_entry {
-  cecs_sig_t sig;
+  struct signature sig;
   struct archetype archetype;
 };
 
@@ -230,7 +236,7 @@ struct cecs_entity_set query_result_cache;
 
 
 /** Returns true if the two signatures are equivalent */
-static bool __always_inline sigs_are_equal(const cecs_sig_t *lhs, const cecs_sig_t *rhs)
+static bool __always_inline sigs_are_equal(const struct signature *lhs, const struct signature *rhs)
 {
   for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     if (lhs->components[i] != rhs->components[i]) {
@@ -243,7 +249,7 @@ static bool __always_inline sigs_are_equal(const cecs_sig_t *lhs, const cecs_sig
 
 
 /** Returns true if `look_for` is entirely represented by `in` */
-static bool __always_inline sig_is_in(const cecs_sig_t *look_for, const cecs_sig_t *in)
+static bool __always_inline sig_is_in(const struct signature *look_for, const struct signature *in)
 {
   for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     if ((look_for->components[i] & in->components[i]) != look_for->components[i]) {
@@ -256,7 +262,7 @@ static bool __always_inline sig_is_in(const cecs_sig_t *look_for, const cecs_sig
 
 
 /** Return the boolean OR union of the two signatures */
-static void __always_inline sig_union(cecs_sig_t *target, const cecs_sig_t *with)
+static void __always_inline sig_union(struct signature *target, const struct signature *with)
 {
   for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     target->components[i] |= with->components[i];
@@ -265,7 +271,7 @@ static void __always_inline sig_union(cecs_sig_t *target, const cecs_sig_t *with
 
 
 /** Return `target` less all the components in `to_remove` */
-static void __always_inline sig_remove(cecs_sig_t *target, const cecs_sig_t *to_remove)
+static void __always_inline sig_remove(struct signature *target, const struct signature *to_remove)
 {
   for (cecs_component_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
     target->components[i] &= ~to_remove->components[i];
@@ -274,9 +280,9 @@ static void __always_inline sig_remove(cecs_sig_t *target, const cecs_sig_t *to_
 
 
 /** Generate a signature reprensenting all the components in the given list */
-static cecs_sig_t components_to_sig(const cecs_component_t n, va_list components)
+static struct signature components_to_sig(const cecs_component_t n, va_list components)
 {
-  cecs_sig_t sig;
+  struct signature sig;
   memset(&sig, 0u, sizeof(sig));
 
   for (size_t i = 0; i < n; ++i) {
@@ -291,7 +297,7 @@ static cecs_sig_t components_to_sig(const cecs_component_t n, va_list components
 
 /** Get all the archetypes that contain the given signature.
  * The caller is responsible for freeing the returned list. */
-static struct archetype_list *get_archetypes_by_sig(const cecs_sig_t *sig)
+static struct archetype_list *get_archetypes_by_sig(const struct signature *sig)
 {
   struct archetype_list *list = malloc(sizeof(struct archetype_list));
   memset(list, 0u, sizeof(*list));
@@ -313,7 +319,7 @@ static struct archetype_list *get_archetypes_by_sig(const cecs_sig_t *sig)
 
 /** Populate the sig->archetype map by assigning the value pointed to by the
  * given archetype pointer to the map value */
-static struct archetype *set_archetype_by_sig(const cecs_sig_t *sig, const struct archetype *archetype)
+static struct archetype *set_archetype_by_sig(const struct signature *sig, const struct archetype *archetype)
 {
   size_t i_bucket = 0;
   for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
@@ -345,7 +351,7 @@ static struct archetype *set_archetype_by_sig(const cecs_sig_t *sig, const struc
 
 
 /** Return the archetype implementing the given signature */
-static struct archetype *get_archetype_by_sig(const cecs_sig_t *sig)
+static struct archetype *get_archetype_by_sig(const struct signature *sig)
 {
   size_t i_bucket = 0;
   for (size_t i = 0; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
@@ -365,7 +371,7 @@ static struct archetype *get_archetype_by_sig(const cecs_sig_t *sig)
 
 /** Get the archetype implementing the given signature, or add an empty one and
  * return that */
-static struct archetype *get_or_add_archetype_by_sig(const cecs_sig_t *sig)
+static struct archetype *get_or_add_archetype_by_sig(const struct signature *sig)
 {
   struct archetype *existing = get_archetype_by_sig(sig);
   if (existing) {
@@ -381,7 +387,7 @@ static struct archetype *get_or_add_archetype_by_sig(const cecs_sig_t *sig)
 
 
 /** Populate the entity->signature map */
-static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
+static void set_sig_by_entity(const cecs_entity_t entity, struct signature *sig)
 {
   const size_t i_bucket = (size_t)(entity % N_SIG_BY_ENTITY_BUCKETS);
   struct sig_by_entity_bucket *bucket = &sigs_by_entity[i_bucket];
@@ -405,7 +411,7 @@ static void set_sig_by_entity(const cecs_entity_t entity, cecs_sig_t *sig)
 
 
 /** Get the signature implemented by the given entity */
-static cecs_sig_t *get_sig_by_entity(const cecs_entity_t entity)
+static struct signature *get_sig_by_entity(const cecs_entity_t entity)
 {
   const size_t i_bucket = (size_t)(entity % N_SIG_BY_ENTITY_BUCKETS);
 
@@ -666,7 +672,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
   }
 
   va_start(components, n);
-  cecs_sig_t sig = components_to_sig(n, components);
+  struct signature sig = components_to_sig(n, components);
   va_end(components);
 
   struct archetype_list *archetypes = get_archetypes_by_sig(&sig);
@@ -763,7 +769,7 @@ cecs_entity_t _cecs_create(const cecs_component_t n, ...)
 {
   va_list components;
   va_start(components, n);
-  cecs_sig_t sig = components_to_sig(n, components);
+  struct signature sig = components_to_sig(n, components);
   va_end(components);
 
   const cecs_entity_t entity = g_next_entity++;
@@ -790,10 +796,10 @@ void _cecs_add(const cecs_entity_t entity, const cecs_component_t n, ...)
 {
   va_list components;
 
-  cecs_sig_t *sig = get_sig_by_entity(entity);
+  struct signature *sig = get_sig_by_entity(entity);
 
   va_start(components, n);
-  cecs_sig_t sig_to_add = components_to_sig(n, components);
+  struct signature sig_to_add = components_to_sig(n, components);
   va_end(components);
 
   sig_union(sig, &sig_to_add);
@@ -818,7 +824,7 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
   va_list components;
 
   /* Get the entity's current signature from the cache */
-  cecs_sig_t *sig = get_sig_by_entity(entity);
+  struct signature *sig = get_sig_by_entity(entity);
 
   /* Remove the entity from its current archetype */
   struct archetype *archetype = get_archetype_by_sig(sig);
@@ -832,7 +838,7 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
   }
 
   va_start(components, n);
-  cecs_sig_t sig_to_remove = components_to_sig(n, components);
+  struct signature sig_to_remove = components_to_sig(n, components);
   va_end(components);
 
   sig_remove(sig, &sig_to_remove);

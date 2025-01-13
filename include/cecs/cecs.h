@@ -105,12 +105,6 @@ extern cecs_component_t CECS_NEXT_COMPONENT_ID;
   cecs_set(entity, type, source)
 
 
-/** A signature represents the components implemented by a type as a bit set. */
-typedef struct {
-  cecs_component_t components[CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS)];
-} cecs_sig_t;
-
-
 struct cecs_entity_set;
 
 /** Iterator over a set of entities */
