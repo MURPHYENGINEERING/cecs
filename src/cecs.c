@@ -110,7 +110,7 @@ struct index_by_entity_bucket {
 #define N_INDICES_BY_ENTITY_BUCKETS ((size_t)16384u)
 
 
-/** ID->component data and entity vec pairs */
+/** ID->component data and entity vector pairs */
 struct component_by_id_table {
   cecs_component_t id;
   size_t size;
@@ -134,7 +134,7 @@ struct component_by_id_bucket {
 #define COMPONENT_BY_ID_MIN_BUCKET_SIZE ((size_t)8u)
 /** Number of buckets in the componet ID->data map */
 #define N_COMPONENT_BY_ID_BUCKETS ((size_t)1024u)
-/** Map from component ID to component data and implementing entities vec */
+/** Map from component ID to component data and implementing entities vector */
 struct component_by_id_bucket components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
 
 
@@ -170,9 +170,9 @@ struct achetype_vec {
   struct archetype **elements;
 };
 
-/** Minimum number of elements to allocate for an entity vec for a given archetype */
+/** Minimum number of elements to allocate for an entity vector for a given archetype */
 #define ARCHETYPE_ENTITIES_VEC_MIN_SIZE ((size_t)16384u)
-/** Minimum number of elements allocated for a vec of archetypes */
+/** Minimum number of elements allocated for a vector of archetypes */
 #define ARCHETYPES_VEC_MIN_SIZE ((size_t)32u)
 /** Minimum number of elements allocated for a signature->archetype map bucket */
 #define ARCHETYPES_BY_SIG_MIN_BUCKET_SIZE ((size_t)32u)
@@ -205,12 +205,12 @@ struct cecs_entity_set {
  * buckets on every query */
 struct cecs_entity_set query_result_cache;
 
-/** Cache the vec of archetypes returned by a query so we don't have to
+/** Cache the vector of archetypes returned by a query so we don't have to
  * allocate on every query */
 struct achetype_vec archetypes_vec_cache;
 
 
-/** Grow the given vec to the minimum size if empty, or double its size */
+/** Grow the given vector to the minimum size if empty, or double its size */
 #define GROW_VEC_IF_NEEDED(vec, min_size, entries, type)                           \
   if ((vec)->count >= (vec)->cap) {                                                \
     if ((vec)->cap == 0u) {                                                         \
@@ -229,7 +229,7 @@ struct achetype_vec archetypes_vec_cache;
   }
 
 
-/** Find the entry in vec `bucket` whose `identifier` matches `search` and
+/** Find the entry in vector `bucket` whose `identifier` matches `search` and
  * return it in `result` */
 #define FIND_ENTRY_IN_BUCKET(bucket, identifier, search, result) \
   for (size_t _i = 0u; _i < (bucket)->count; ++_i) {              \
@@ -283,7 +283,7 @@ static void __always_inline sig_remove(struct signature *target, const struct si
 }
 
 
-/** Generate a signature reprensenting all the components in the given vec */
+/** Generate a signature reprensenting all the components in the given vector */
 static struct signature components_to_sig(const cecs_component_t n, va_list components)
 {
   struct signature sig;
@@ -300,7 +300,7 @@ static struct signature components_to_sig(const cecs_component_t n, va_list comp
 
 
 /** Get all the archetypes that contain the given signature.
- * The caller is responsible for freeing the returned vec. */
+ * The caller is responsible for freeing the returned vector. */
 static struct achetype_vec *get_archetypes_by_sig(const struct signature *sig)
 {
   struct achetype_vec *vec = &archetypes_vec_cache;
@@ -474,14 +474,14 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
   } else {
     struct index_by_entity_pair *index_pair = NULL;
     if (index_bucket->pairs) {
-      /* Bucket vec is already allocated, check it for duplicates */
+      /* Bucket vector is already allocated, check it for duplicates */
       FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_pair);
       /* Don't allow duplicates */
       if (index_pair) {
         return;
       }
     } else {
-      /* Bucket vec is not yet allocated, check if the singulate value is a
+      /* Bucket vector is not yet allocated, check if the singulate value is a
        * duplicate */
       if (index_bucket->value.entity == entity) {
         return;
@@ -492,7 +492,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
     GROW_VEC_IF_NEEDED(index_bucket, INDEX_BY_ENTITY_MIN_BUCKET_SIZE, pairs, struct index_by_entity_pair);
 
     if (index_bucket->count == 1u) {
-      /* Transitioning from 1 to 2 elements. Put the singulate value in the vec */
+      /* Transitioning from 1 to 2 elements. Put the singulate value in the vector */
       index_bucket->pairs[0u] = index_bucket->value;
     }
 
@@ -566,7 +566,7 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
   }
 
   struct index_by_entity_pair *index_pair = NULL;
-  /* Component bucket has entity vec, search it for the entity */
+  /* Component bucket has entity vector, search it for the entity */
   FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_pair);
 
   if (!index_pair) {
@@ -574,9 +574,9 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
     return;
   }
 
-  /* Grow the free indices vec if needed */
+  /* Grow the free indices vector if needed */
   GROW_VEC_IF_NEEDED(&component->free_indices, 32u, indices, size_t);
-  /* Add the removed entity's data index to the free vec */
+  /* Add the removed entity's data index to the free vector */
   component->free_indices.indices[component->free_indices.count++] = index_pair->index;
 
   if (index_bucket->count == 2u) {
@@ -695,7 +695,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
 
       if (bucket->count == 0u) {
         /* The bucket is empty, the first entity can go in the singulate value
-         * instead of allocating a vec */
+         * instead of allocating a vector */
         bucket->value = entity;
         bucket->count = 1u;
         ++n_entities;
@@ -706,7 +706,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
       /* Check for duplicates */
       bool exists = false;
       if (bucket->entities) {
-        /* The bucket vec is populated, we have to check every single entry */
+        /* The bucket vector is populated, we have to check every single entry */
         for (size_t j = 0u; j < bucket->count; ++j) {
           if (bucket->entities[j] == entity) {
             exists = true;
@@ -714,7 +714,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
           }
         }
       } else {
-        /* Bucket vec is not populated */
+        /* Bucket vector is not populated */
         exists = bucket->value == entity;
       }
       if (exists) {
@@ -725,7 +725,7 @@ cecs_entity_t _cecs_query(cecs_iter_t *it, const cecs_component_t n, ...)
       GROW_VEC_IF_NEEDED(bucket, ENTITY_SET_MIN_BUCKET_SIZE, entities, cecs_entity_t);
       if (bucket->count == 1u) {
         /* We're transitioning from 1 element to 2 elements, move the
-         * singulate value to the vec */
+         * singulate value to the vector */
         bucket->entities[0u] = bucket->value;
       }
       /* Add an entry to the end of the bucket and increase the count */
@@ -863,7 +863,7 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
   /* Cache the entity's new signature */
   set_sig_by_entity(entity, &sig_removed);
 
-  /* Remove the entity from all components named in the vec */
+  /* Remove the entity from all components named in the vector */
   va_start(components, n);
   for (size_t i = 0u; i < n; ++i) {
     remove_entity_from_component(va_arg(components, cecs_component_t), entity);
