@@ -482,7 +482,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
         index_pair->index  = index;
     }
 
-    /* Grow the component component if needed */
+    /* Grow the component table if needed */
     if (component->count >= component->cap) {
         if (component->cap == 0u) {
             /* Allocate for the first time */
