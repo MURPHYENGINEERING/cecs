@@ -112,12 +112,19 @@ struct index_by_entity_bucket {
 
 /** ID->component data and entity vector pairs */
 struct component_by_id {
+    /* This component's ID */
     cecs_component_t id;
+    /* Size in bytes of this component's data struct */
     size_t size;
+    /* Array of entity component data */
     void *data;
+    /* Number of entities that can be stored in this component before resizing */
     size_t cap;
+    /* Number of entities implementing this component */
     size_t count;
+    /* Map of entity->index into the component data array */
     struct index_by_entity_bucket indices_by_entity[N_INDICES_BY_ENTITY_BUCKETS];
+    /* Vector of indices that are unused in the component data array */
     struct index_vec free_indices;
 };
 
