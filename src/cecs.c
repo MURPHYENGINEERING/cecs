@@ -329,11 +329,15 @@ static struct achetype_vec *get_archetypes_by_sig(const struct signature *sig)
 
 static __always_inline size_t hash_sig(const struct signature *sig, const size_t max)
 {
-    size_t hash = 0u;
+    cecs_component_t hash = 0u;
     for (size_t i = 0u; i < CECS_MAX_COMPONENT_INDEX; ++i) {
-        hash ^= (size_t)(sig->components[i] % max);
+        hash ^= (sig->components[i] >> 30u);
+        hash *= 0xbf58476d1ce4e5b9u;
+        hash ^= (sig->components[i] >> 27u);
+        hash *= 0x94d049bb133111ebu;
+        hash ^= (sig->components[i] >> 31u);
     }
-    return hash;
+    return (size_t)(hash % max);
 }
 
 
