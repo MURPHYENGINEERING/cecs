@@ -178,9 +178,9 @@ struct achetype_vec {
  * Used to return a vector of archetypes that match a given signature. */
 #define ARCHETYPES_VEC_MIN_SIZE ((size_t)32u)
 /** Minimum number of elements allocated for a signature->archetype map bucket */
-#define ARCHETYPES_BY_SIG_MIN_BUCKET_SIZE ((size_t)32u)
+#define ARCHETYPES_BY_SIG_MIN_BUCKET_SIZE ((size_t)64u)
 /** Number of buckets in the signature->archetype map */
-#define N_ARCHETYPE_BY_SIG_BUCKETS ((size_t)256u)
+#define N_ARCHETYPE_BY_SIG_BUCKETS ((size_t)64u)
 /** Map from signature to the archetype it represents */
 struct archetype_by_sig_bucket archetypes_by_sig[N_ARCHETYPE_BY_SIG_BUCKETS] = { 0u };
 
