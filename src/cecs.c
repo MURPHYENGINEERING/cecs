@@ -123,7 +123,7 @@ struct component_by_id {
 
 
 /** Minimum number of elements allocated for component data by index */
-#define COMPONENT_MIN_DATA_SIZE ((size_t)16384u)
+#define COMPONENT_MIN_ENTITIES_COUNT ((size_t)16384u)
 /** Number of buckets in the componet ID->data map */
 #define N_COMPONENT_BY_ID_BUCKETS ((size_t)(CECS_N_COMPONENTS))
 /** Map from component ID to component data and implementing entities vector */
@@ -486,7 +486,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
     if (component->count >= component->cap) {
         if (component->cap == 0u) {
             /* Allocate for the first time */
-            component->cap  = COMPONENT_MIN_DATA_SIZE;
+            component->cap  = COMPONENT_MIN_ENTITIES_COUNT;
             component->data = realloc(component->data, component->cap * component->size);
             assert(component->data && "Out of memory");
 #ifdef CECS_ZERO_NEW_COMPONENT_DATA
