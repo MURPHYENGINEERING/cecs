@@ -18,6 +18,8 @@ typedef cecs_id_t cecs_entity_t;
  * state */
 typedef cecs_id_t cecs_component_t;
 
+#define CECS_COMPONENT_INVALID ((cecs_component_t)0u)
+
 /** Used to track the ID that will be assigned to the next component defined */
 extern cecs_component_t CECS_NEXT_COMPONENT_ID;
 
@@ -34,6 +36,7 @@ extern cecs_component_t CECS_NEXT_COMPONENT_ID;
 #define CECS_COMPONENT_TO_INDEX(component) \
     ((component) / ((cecs_component_t)8u * sizeof(cecs_component_t)))
 
+#define CECS_MAX_COMPONENT_INDEX CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS)
 
 /** Declare that a component exists. This should be done at the header level. */
 #define CECS_COMPONENT_DECL(type)           \

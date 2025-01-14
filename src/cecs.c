@@ -39,15 +39,16 @@
 
 
 /** The next component ID to be assigned on registration */
-cecs_component_t CECS_NEXT_COMPONENT_ID = (cecs_component_t)1u;
+cecs_component_t CECS_NEXT_COMPONENT_ID = (cecs_component_t)(CECS_COMPONENT_INVALID + 1u);
 
 /** The next entity to be assigned on creation */
-cecs_entity_t g_next_entity = CECS_ENTITY_INVALID + 1u;
+cecs_entity_t g_next_entity = (cecs_entity_t)(CECS_ENTITY_INVALID + 1u);
 
+#define MIN_ENTITIES_COUNT ((size_t) 16384u)
 
 /** A signature represents the components implemented by a type as a bit set. */
 struct signature {
-    cecs_component_t components[CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS)];
+    cecs_component_t components[CECS_MAX_COMPONENT_INDEX];
 };
 
 
@@ -66,9 +67,9 @@ struct sig_by_entity_bucket {
 };
 
 /** Minimum number of elements allocated for an entity->signature map bucket */
-#define SIG_BY_ENTITY_MIN_BUCKET_SIZE ((size_t)32u)
+#define SIG_BY_ENTITY_MIN_BUCKET_SIZE ((size_t)2u)
 /** Number of buckets in the entity->signature map */
-#define N_SIG_BY_ENTITY_BUCKETS ((size_t)16384u)
+#define N_SIG_BY_ENTITY_BUCKETS MIN_ENTITIES_COUNT
 /** Map from entity ID to the signature it implements */
 struct sig_by_entity_bucket sigs_by_entity[N_SIG_BY_ENTITY_BUCKETS] = { 0u };
 
@@ -105,9 +106,9 @@ struct index_by_entity_bucket {
 };
 
 /** Minimum number of elements allocated for an entity->index map bucket */
-#define INDEX_BY_ENTITY_MIN_BUCKET_SIZE ((size_t)8u)
+#define INDEX_BY_ENTITY_MIN_BUCKET_SIZE ((size_t)2u)
 /** Number of buckets in the entity ID->index map */
-#define N_INDICES_BY_ENTITY_BUCKETS ((size_t)16384u)
+#define N_INDEX_BY_ENTITY_BUCKETS MIN_ENTITIES_COUNT
 
 
 /** ID->component data and entity vector pairs */
@@ -123,14 +124,14 @@ struct component_by_id {
     /* Number of entities implementing this component */
     size_t count;
     /* Map of entity->index into the component data array */
-    struct index_by_entity_bucket indices_by_entity[N_INDICES_BY_ENTITY_BUCKETS];
+    struct index_by_entity_bucket indices_by_entity[N_INDEX_BY_ENTITY_BUCKETS];
     /* Vector of indices that are unused in the component data array */
     struct index_vec free_indices;
 };
 
 
 /** Minimum number of elements allocated for component data by index */
-#define COMPONENT_MIN_ENTITIES_COUNT ((size_t)16384u)
+#define COMPONENT_MIN_ENTITIES_COUNT MIN_ENTITIES_COUNT
 /** Number of buckets in the componet ID->data map */
 #define N_COMPONENT_BY_ID_BUCKETS ((size_t)(CECS_N_COMPONENTS))
 /** Map from component ID to component data and implementing entities vector */
@@ -170,8 +171,9 @@ struct achetype_vec {
 };
 
 /** Minimum number of elements to allocate for an entity vector for a given archetype */
-#define ARCHETYPE_ENTITIES_VEC_MIN_SIZE ((size_t)16384u)
-/** Minimum number of elements allocated for a vector of archetypes */
+#define ARCHETYPE_ENTITIES_VEC_MIN_SIZE MIN_ENTITIES_COUNT
+/** Minimum number of elements allocated for a vector of archetypes.
+ * Used to return a vector of archetypes that match a given signature. */
 #define ARCHETYPES_VEC_MIN_SIZE ((size_t)32u)
 /** Minimum number of elements allocated for a signature->archetype map bucket */
 #define ARCHETYPES_BY_SIG_MIN_BUCKET_SIZE ((size_t)32u)
@@ -241,7 +243,7 @@ struct achetype_vec archetypes_vec_cache;
 /** Returns true if the two signatures are equivalent */
 static bool __always_inline sigs_are_equal(const struct signature *lhs, const struct signature *rhs)
 {
-    for (cecs_component_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+    for (cecs_component_t i = 0u; i < CECS_MAX_COMPONENT_INDEX; ++i) {
         if (lhs->components[i] != rhs->components[i]) {
             return false;
         }
@@ -254,7 +256,7 @@ static bool __always_inline sigs_are_equal(const struct signature *lhs, const st
 /** Returns true if `look_for` is entirely represented by `in` */
 static bool __always_inline sig_is_in(const struct signature *look_for, const struct signature *in)
 {
-    for (cecs_component_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+    for (cecs_component_t i = 0u; i < CECS_MAX_COMPONENT_INDEX; ++i) {
         if ((look_for->components[i] & in->components[i]) != look_for->components[i]) {
             return false;
         }
@@ -267,7 +269,7 @@ static bool __always_inline sig_is_in(const struct signature *look_for, const st
 /** Return the boolean OR union of the two signatures */
 static void __always_inline sig_union(struct signature *target, const struct signature *with)
 {
-    for (cecs_component_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+    for (cecs_component_t i = 0u; i < CECS_MAX_COMPONENT_INDEX; ++i) {
         target->components[i] |= with->components[i];
     }
 }
@@ -276,7 +278,7 @@ static void __always_inline sig_union(struct signature *target, const struct sig
 /** Return `target` less all the components in `to_remove` */
 static void __always_inline sig_remove(struct signature *target, const struct signature *to_remove)
 {
-    for (cecs_component_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
+    for (cecs_component_t i = 0u; i < CECS_MAX_COMPONENT_INDEX; ++i) {
         target->components[i] &= ~to_remove->components[i];
     }
 }
@@ -323,14 +325,21 @@ static struct achetype_vec *get_archetypes_by_sig(const struct signature *sig)
 }
 
 
+static __always_inline size_t hash_sig(const struct signature *sig, const size_t max)
+{
+    size_t hash = 0u;
+    for (size_t i = 0u; i < CECS_MAX_COMPONENT_INDEX; ++i) {
+        hash ^= (size_t)(sig->components[i] % max);
+    }
+    return hash;
+}
+
+
 /** Populate the sig->archetype map by assigning the value pointed to by the
  * given archetype pointer to the map value */
 static struct archetype *set_archetype_by_sig(const struct signature *sig, const struct archetype *archetype)
 {
-    size_t i_bucket = 0u;
-    for (size_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
-        i_bucket ^= (size_t)(sig->components[i] % N_ARCHETYPE_BY_SIG_BUCKETS);
-    }
+    const size_t i_bucket = hash_sig(sig, N_ARCHETYPE_BY_SIG_BUCKETS);
     struct archetype_by_sig_bucket *bucket = &archetypes_by_sig[i_bucket];
 
     /* If entity already exists in bucket, just overwrite its value */
@@ -359,10 +368,7 @@ static struct archetype *set_archetype_by_sig(const struct signature *sig, const
 /** Return the archetype implementing the given signature */
 static struct archetype *get_archetype_by_sig(const struct signature *sig)
 {
-    size_t i_bucket = 0u;
-    for (size_t i = 0u; i < CECS_COMPONENT_TO_INDEX(CECS_N_COMPONENTS); ++i) {
-        i_bucket ^= (size_t)(sig->components[i] % N_ARCHETYPE_BY_SIG_BUCKETS);
-    }
+    const size_t i_bucket = hash_sig(sig, N_ARCHETYPE_BY_SIG_BUCKETS);
     struct archetype_by_sig_bucket *bucket = &archetypes_by_sig[i_bucket];
 
     for (size_t i = 0u; i < bucket->count; ++i) {
@@ -451,7 +457,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
 {
     struct component_by_id *component = get_component_by_id(id);
 
-    const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
+    const size_t i_index_bucket = (size_t)(entity % N_INDEX_BY_ENTITY_BUCKETS);
     struct index_by_entity_bucket *index_bucket
         = &component->indices_by_entity[i_index_bucket];
 
@@ -538,7 +544,7 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
 {
     struct component_by_id *component = get_component_by_id(id);
 
-    const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
+    const size_t i_index_bucket = (size_t)(entity % N_INDEX_BY_ENTITY_BUCKETS);
     struct index_by_entity_bucket *index_bucket
         = &component->indices_by_entity[i_index_bucket];
 
@@ -724,7 +730,7 @@ void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
 {
     struct component_by_id *component = get_component_by_id(id);
 
-    const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
+    const size_t i_index_bucket = (size_t)(entity % N_INDEX_BY_ENTITY_BUCKETS);
     struct index_by_entity_bucket *index_bucket
         = &component->indices_by_entity[i_index_bucket];
 
@@ -866,7 +872,7 @@ bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data
 {
     struct component_by_id *component = get_component_by_id(id);
 
-    const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
+    const size_t i_index_bucket = (size_t)(entity % N_INDEX_BY_ENTITY_BUCKETS);
     struct index_by_entity_bucket *index_bucket
         = &component->indices_by_entity[i_index_bucket];
 
@@ -908,7 +914,7 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
         struct component_by_id *component
             = get_component_by_id(va_arg(components, cecs_component_t));
 
-        const size_t i_index_bucket = (size_t)(entity % N_INDICES_BY_ENTITY_BUCKETS);
+        const size_t i_index_bucket = (size_t)(entity % N_INDEX_BY_ENTITY_BUCKETS);
         struct index_by_entity_bucket *index_bucket
             = &component->indices_by_entity[i_index_bucket];
 
