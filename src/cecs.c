@@ -143,7 +143,7 @@ struct archetype {
 };
 
 /** Signature->Archetype to be stored in the sig->archetype map */
-struct archetype_by_sig_entry {
+struct archetype_by_sig_pair {
     struct signature sig;
     struct archetype archetype;
 };
@@ -152,7 +152,7 @@ struct archetype_by_sig_entry {
 struct archetype_by_sig_bucket {
     size_t count;
     size_t cap;
-    struct archetype_by_sig_entry *pairs;
+    struct archetype_by_sig_pair *pairs;
 };
 
 /** Vector of pointers to archetypes, which are stored in the sig->archetype map */
@@ -304,10 +304,10 @@ static struct achetype_vec *get_archetypes_by_sig(const struct signature *sig)
     for (size_t i_bucket = 0u; i_bucket < N_ARCHETYPE_BY_SIG_BUCKETS; ++i_bucket) {
         struct archetype_by_sig_bucket *bucket = &archetypes_by_sig[i_bucket];
         for (size_t i_entry = 0u; i_entry < bucket->count; ++i_entry) {
-            struct archetype_by_sig_entry *entry = &bucket->pairs[i_entry];
-            if (sig_is_in(sig, &entry->sig)) {
+            struct archetype_by_sig_pair *pair = &bucket->pairs[i_entry];
+            if (sig_is_in(sig, &pair->sig)) {
                 GROW_VEC_IF_NEEDED(vec, ARCHETYPES_VEC_MIN_SIZE, elements, struct archetype *);
-                vec->elements[vec->count++] = &entry->archetype;
+                vec->elements[vec->count++] = &pair->archetype;
             }
         }
     }
@@ -328,24 +328,24 @@ static struct archetype *set_archetype_by_sig(const struct signature *sig, const
 
     /* If entity already exists in bucket, just overwrite its value */
     for (size_t i = 0u; i < bucket->count; ++i) {
-        struct archetype_by_sig_entry *entry = &bucket->pairs[i];
-        if (sigs_are_equal(&entry->sig, sig)) {
-            entry->archetype = *archetype;
-            return &entry->archetype;
+        struct archetype_by_sig_pair *pair = &bucket->pairs[i];
+        if (sigs_are_equal(&pair->sig, sig)) {
+            pair->archetype = *archetype;
+            return &pair->archetype;
         }
     }
 
     /* Entity wasn't found in bucket. Check if we need to expand the bucket first
      */
-    GROW_VEC_IF_NEEDED(bucket, ARCHETYPES_BY_SIG_MIN_BUCKET_SIZE, pairs, struct archetype_by_sig_entry);
+    GROW_VEC_IF_NEEDED(bucket, ARCHETYPES_BY_SIG_MIN_BUCKET_SIZE, pairs, struct archetype_by_sig_pair);
 
-    /* Add a new entry to the bucket */
-    struct archetype_by_sig_entry *entry = &bucket->pairs[bucket->count++];
+    /* Add a new pair to the bucket */
+    struct archetype_by_sig_pair *pair = &bucket->pairs[bucket->count++];
 
-    entry->sig       = *sig;
-    entry->archetype = *archetype;
+    pair->sig       = *sig;
+    pair->archetype = *archetype;
 
-    return &entry->archetype;
+    return &pair->archetype;
 }
 
 
