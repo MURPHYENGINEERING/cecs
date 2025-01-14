@@ -44,7 +44,7 @@ cecs_component_t CECS_NEXT_COMPONENT_ID = (cecs_component_t)(CECS_COMPONENT_INVA
 /** The next entity to be assigned on creation */
 cecs_entity_t g_next_entity = (cecs_entity_t)(CECS_ENTITY_INVALID + 1u);
 
-#define MIN_ENTITIES_COUNT ((size_t) 16384u)
+#define MIN_ENTITIES_COUNT ((size_t)16384u)
 
 /** A signature represents the components implemented by a type as a bit set. */
 struct signature {
@@ -137,6 +137,8 @@ struct component_by_id {
 /** Map from component ID to component data and implementing entities vector */
 struct component_by_id components_by_id[N_COMPONENT_BY_ID_BUCKETS] = { 0u };
 
+#define COMPONENT_DATA_PTR(component, index) \
+    ((void *)(((uint8_t *)(component)->data) + ((index) * (component)->size)))
 
 /** An archetype is a unique composition of components. */
 struct archetype {
@@ -746,8 +748,7 @@ void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
         return NULL;
     }
 
-    return (void *)(((uint8_t *)component->data)
-                    + (index_by_entity->index * component->size));
+    return COMPONENT_DATA_PTR(component, index_by_entity->index);
 }
 
 
@@ -893,7 +894,7 @@ bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data
     }
 
     memcpy(
-        ((uint8_t *)component->data) + (index_by_entity->index * component->size),
+        COMPONENT_DATA_PTR(component, index_by_entity->index),
         data,
         component->size
     );
@@ -935,7 +936,7 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
         }
 
         memset(
-            ((uint8_t *)component->data) + (index_by_entity->index * component->size),
+            COMPONENT_DATA_PTR(component, index_by_entity->index),
             0u,
             component->size
         );
