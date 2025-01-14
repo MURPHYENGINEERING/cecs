@@ -234,11 +234,11 @@ struct achetype_vec archetypes_vec_cache;
 
 /** Find the entry in vector `bucket` whose `identifier` matches `search` and
  * return it in `result` */
-#define FIND_ENTRY_IN_BUCKET(bucket, identifier, search, result) \
-    for (size_t _i = 0u; _i < (bucket)->count; ++_i) {           \
-        if ((bucket)->pairs[_i].identifier == (search)) {        \
-            (result) = &(bucket)->pairs[_i];                     \
-        }                                                        \
+#define FIND_ENTRY_IN_VEC(vec, identifier, search, result) \
+    for (size_t _i = 0u; _i < (vec)->count; ++_i) {        \
+        if ((vec)->pairs[_i].identifier == (search)) {     \
+            (result) = &(vec)->pairs[_i];                  \
+        }                                                  \
     }
 
 
@@ -432,7 +432,7 @@ static struct signature *get_sig_by_entity(const cecs_entity_t entity)
     struct sig_by_entity_bucket *bucket = &sigs_by_entity[i_bucket];
 
     struct sig_by_entity_entry *entry = NULL;
-    FIND_ENTRY_IN_BUCKET(bucket, entity, entity, entry);
+    FIND_ENTRY_IN_VEC(bucket, entity, entity, entry);
 
     if (entry) {
         return &entry->sig;
@@ -445,10 +445,6 @@ static struct signature *get_sig_by_entity(const cecs_entity_t entity)
 static __always_inline struct component_by_id *get_component_by_id(const cecs_component_t id)
 {
     assert(id > 0 && "Component was not registered with CECS_COMPONENT()");
-    assert(
-        id < CECS_N_COMPONENTS
-        && "Component ID is out of range. Increase CECS_N_COMPONENTS."
-    );
 
     return &components_by_id[(size_t)id];
 }
@@ -485,7 +481,7 @@ static void add_entity_to_component(const cecs_component_t id, const cecs_entity
         struct index_by_entity_pair *index_pair = NULL;
         if (index_bucket->pairs) {
             /* Bucket vector is already allocated, check it for duplicates */
-            FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_pair);
+            FIND_ENTRY_IN_VEC(index_bucket, entity, entity, index_pair);
             /* Don't allow duplicates */
             if (index_pair) {
                 return;
@@ -568,7 +564,7 @@ static void remove_entity_from_component(const cecs_component_t id, const cecs_e
 
     struct index_by_entity_pair *index_pair = NULL;
     /* Component bucket has entity vector, search it for the entity */
-    FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_pair);
+    FIND_ENTRY_IN_VEC(index_bucket, entity, entity, index_pair);
 
     if (!index_pair) {
         /* Entity doesn't have component */
@@ -740,7 +736,7 @@ void *_cecs_get(const cecs_entity_t entity, const cecs_component_t id)
     if (index_bucket->count == 1u) {
         index_by_entity = &index_bucket->value;
     } else {
-        FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
+        FIND_ENTRY_IN_VEC(index_bucket, entity, entity, index_by_entity);
     }
 
     if (!index_by_entity) {
@@ -860,9 +856,13 @@ void _cecs_remove(const cecs_entity_t entity, const cecs_component_t n, ...)
 /** Register the given component as having the specified size */
 void cecs_register_component(const cecs_component_t id, const size_t size)
 {
+    assert(
+        id < CECS_N_COMPONENTS
+        && "Component ID is out of range. Increase CECS_N_COMPONENTS."
+    );
+
     struct component_by_id *component = get_component_by_id(id);
 
-    /* Populate the component ID and size */
     component->id   = id;
     component->size = size;
 }
@@ -885,7 +885,7 @@ bool _cecs_set(const cecs_entity_t entity, const cecs_component_t id, void *data
         }
     } else {
         /* More than one entry in bucket, search the vector */
-        FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
+        FIND_ENTRY_IN_VEC(index_bucket, entity, entity, index_by_entity);
     }
 
     if (!index_by_entity) {
@@ -927,7 +927,7 @@ bool _cecs_zero(const cecs_entity_t entity, const size_t n, ...)
             }
         } else {
             /* More than one entry in bucket, search the vector */
-            FIND_ENTRY_IN_BUCKET(index_bucket, entity, entity, index_by_entity);
+            FIND_ENTRY_IN_VEC(index_bucket, entity, entity, index_by_entity);
         }
 
         if (!index_by_entity) {
